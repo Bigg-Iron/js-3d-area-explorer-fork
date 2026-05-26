@@ -9,14 +9,82 @@
       href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css"
       rel="stylesheet"
     />
-    <title>3D Area Explorer</title>
+    <!-- Google Fonts for Space-Age Dark Tech UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- deck.gl for premium high-performance geospatial overlays -->
+    <script src="https://unpkg.com/deck.gl@~9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@loaders.gl/3d-tiles@^4.0.0/dist/dist.min.js"></script>
+    <title>3D Spatial Operations Dashboard</title>
   </head>
   <body>
     <main class="main-container">
+      <!-- Floating Spatial Operations Control Center -->
+      <div class="ops-header-overlay">
+        <div class="ops-title-group">
+          <span class="pulse-icon-red"></span>
+          <h1>SPATIAL OPERATIONS CENTER</h1>
+          <span class="system-status-pill">SYS: ACTIVE</span>
+        </div>
+        <div class="ops-search-box">
+          <input type="text" id="place-search-input" placeholder="🔍 Search globally..." autocomplete="off" />
+        </div>
+        <div class="ops-mode-selector">
+          <button class="ops-tab active" id="tab-explorer">🧭 Explorer</button>
+          <button class="ops-tab" id="tab-fleet">🚚 Fleet Engine</button>
+          <button class="ops-tab" id="tab-indoor">🏢 Oriient Indoor</button>
+          <button class="ops-tab" id="tab-bq">📊 BigQuery Analytics</button>
+        </div>
+      </div>
+
+      <!-- Overlaid Floating Telemetry Panel -->
+      <div class="ops-telemetry-panel glass-panel hidden" id="ops-telemetry-panel">
+        <!-- Dynamic telemetry cards go here -->
+      </div>
+
+      <!-- Floating Glassmorphic Camera Controls Card -->
+      <div class="ops-camera-panel glass-panel" id="ops-camera-panel">
+        <div class="ops-section-title">🎥 CAMERA CONTROLS</div>
+        
+        <div class="camera-control-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <span class="camera-label" style="margin-bottom: 0; display: inline-block;">🌌 Auto Orbit Mode</span>
+          <label class="switch" for="toggle-switch-panel" style="margin: 0;">
+            <div class="input-wrapper">
+              <input type="checkbox" id="toggle-switch-panel" checked />
+              <span class="slider"></span>
+            </div>
+          </label>
+        </div>
+        <div class="camera-control-row">
+          <label for="orbit-speed-slider" class="camera-label">🔄 Orbit Speed: <span id="orbit-speed-val">1.0</span> RPM</label>
+          <input type="range" id="orbit-speed-slider" min="0.1" max="4.0" step="0.1" value="1.0" class="camera-slider" />
+        </div>
+
+        <div class="camera-control-row">
+          <label for="orbit-radius-slider" class="camera-label">📏 Orbit Radius: <span id="orbit-radius-val">800</span> m</label>
+          <input type="range" id="orbit-radius-slider" min="200" max="2500" step="50" value="800" class="camera-slider" />
+        </div>
+
+        <div class="camera-control-row">
+          <label for="orbit-pitch-slider" class="camera-label">📐 Pitch (Tilt): <span id="orbit-pitch-val">-30</span>°</label>
+          <input type="range" id="orbit-pitch-slider" min="-75" max="-15" step="1" value="-30" class="camera-slider" />
+        </div>
+
+        <div class="camera-control-row">
+          <label for="orbit-style-select" class="camera-label">🌊 Orbit Style</label>
+          <select id="orbit-style-select" class="camera-select">
+            <option value="fixed-orbit">Fixed (Circular)</option>
+            <option value="dynamic-orbit" selected>Dynamic (Sine wave)</option>
+          </select>
+        </div>
+      </div>
+
       <!-- This section contains a cesium container for displaying 3D map tiles  -->
       <!-- JavaScript is used to manipulate the HTML elements, add event listeners,
         and perform other actions to make the cesium globe interactive and dynamic. -->
       <div id="cesium-container">
+        <canvas id="deck-canvas"></canvas>
         <div class="custom-overlay overlay-is-hidden">
           <div class="zoom-control">
             <button

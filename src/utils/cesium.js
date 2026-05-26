@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-import { GOOGLE_MAPS_API_KEY } from "../../env.js";
+import { GOOGLE_MAPS_API_KEY } from "../env.js";
 
 // Camera height above the target when flying to a point.
 const CAMERA_HEIGHT = 100;
@@ -97,7 +97,20 @@ async function createTileset() {
     // Add tileset to the scene
     cesiumViewer.scene.primitives.add(tileset);
   } catch (error) {
-    console.error(`Error creating tileset: ${error}`);
+    console.warn(`Error creating Google 3D tileset: ${error}. Attempting EEA / OpenStreetMap fallback...`);
+    try {
+      // Fallback: load default Cesium OSM buildings for 3D representation
+      const osmBuildings = await Cesium.createOsmBuildingsAsync();
+      cesiumViewer.scene.primitives.add(osmBuildings);
+      
+      // Inject fallback notification
+      const fallbackDiv = document.createElement("div");
+      fallbackDiv.className = "fallback-toast";
+      fallbackDiv.innerHTML = "⚠️ Google 3D Tiles unavailable. Active EEA OpenStreetMap 3D fallback.";
+      document.body.appendChild(fallbackDiv);
+    } catch (fallbackError) {
+      console.error(`Error loading fallback OSM Buildings: ${fallbackError}`);
+    }
   }
 }
 
@@ -140,11 +153,24 @@ async function adjustCoordinateHeight(coords) {
   const { lat, lng } = coords;
 
   const cartesian = Cesium.Cartesian3.fromDegrees(lng, lat);
-  const clampedCoords = await cesiumViewer.scene.clampToHeightMostDetailed([
-    cartesian,
-  ]);
+  try {
+    const clampedCoords = await cesiumViewer.scene.clampToHeightMostDetailed([
+      cartesian,
+    ]);
 
-  const cartographic = Cesium.Cartographic.fromCartesian(clampedCoords[0]);
+    if (clampedCoords && clampedCoords[0]) {
+      const cartographic = Cesium.Cartographic.fromCartesian(clampedCoords[0]);
+      return Cesium.Cartesian3.fromRadians(
+        cartographic.longitude,
+        cartographic.latitude,
+        cartographic.height + CAMERA_HEIGHT
+      );
+    }
+  } catch (err) {
+    console.warn("⚠️ clampToHeightMostDetailed failed, using fallback:", err);
+  }
+
+  const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
   return Cesium.Cartesian3.fromRadians(
     cartographic.longitude,
     cartographic.latitude,
@@ -251,8 +277,12 @@ export async function updateZoomToRadius(range) {
  */
 function isAutoOrbitEnabled() {
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
+  const panelSwitch = document.getElementById("toggle-switch-panel");
 
-  return autoOrbitSwitchInput.checked;
+  if (panelSwitch) {
+    return panelSwitch.checked;
+  }
+  return autoOrbitSwitchInput ? autoOrbitSwitchInput.checked : false;
 }
 
 /**
@@ -260,8 +290,11 @@ function isAutoOrbitEnabled() {
  */
 async function startAutoOrbitAnimation() {
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
-  // Check the toggle switch
-  autoOrbitSwitchInput.checked = true;
+  const panelSwitch = document.getElementById("toggle-switch-panel");
+  
+  // Check the toggle switches
+  if (autoOrbitSwitchInput) autoOrbitSwitchInput.checked = true;
+  if (panelSwitch) panelSwitch.checked = true;
 
   let center = null;
 
@@ -307,6 +340,37 @@ async function startAutoOrbitAnimation() {
     const currentTimestamp = Date.now();
     const secondsSinceLastFrame =
       (currentTimestamp - previousFrameTimestamp) / 1000;
+
+    // Dynamically fetch and sync slider inputs in real-time
+    const speedInput = document.getElementById("orbit-speed-slider");
+    if (speedInput) {
+      autoOrbitCameraSpeed = parseFloat(speedInput.value);
+      const valText = document.getElementById("orbit-speed-val");
+      if (valText) valText.innerText = autoOrbitCameraSpeed.toFixed(1);
+    }
+
+    const styleInput = document.getElementById("orbit-style-select");
+    if (styleInput) {
+      autoOrbitType = styleInput.value;
+    }
+
+    const radiusInput = document.getElementById("orbit-radius-slider");
+    let currentBaseRange = initialRange;
+    if (radiusInput) {
+      currentBaseRange = parseFloat(radiusInput.value);
+      const valText = document.getElementById("orbit-radius-val");
+      if (valText) valText.innerText = currentBaseRange;
+    }
+
+    const pitchInput = document.getElementById("orbit-pitch-slider");
+    let currentBasePitch = initialPitch;
+    if (pitchInput) {
+      const pitchDeg = parseFloat(pitchInput.value);
+      currentBasePitch = Cesium.Math.toRadians(pitchDeg);
+      const valText = document.getElementById("orbit-pitch-val");
+      if (valText) valText.innerText = pitchDeg;
+    }
+
     const radian =
       secondsSinceLastFrame * (autoOrbitCameraSpeed / 60) * Math.PI * 2;
 
@@ -316,16 +380,16 @@ async function startAutoOrbitAnimation() {
 
     // change the camera pitch by time elapsed (pitch is the up down rotation of the camera)
     const dynamicPitch =
-      initialPitch + pitchAmplitude * Math.sin(totalHeadingChange);
+      currentBasePitch + pitchAmplitude * Math.sin(totalHeadingChange);
     const pitch =
-      autoOrbitType === "dynamic-orbit" ? dynamicPitch : initialPitch;
+      autoOrbitType === "dynamic-orbit" ? dynamicPitch : currentBasePitch;
 
     // change the camera range by time elapsed (range is the distance of the camera from the center)
     const dynamicRange =
-      initialRange +
-      RANGE_AMPLITUDE_RELATIVE * initialRange * -Math.sin(totalHeadingChange);
+      currentBaseRange +
+      RANGE_AMPLITUDE_RELATIVE * currentBaseRange * -Math.sin(totalHeadingChange);
     const range =
-      autoOrbitType === "dynamic-orbit" ? dynamicRange : initialRange;
+      autoOrbitType === "dynamic-orbit" ? dynamicRange : currentBaseRange;
 
     // update the camera position and orientation
     cesiumViewer.camera.flyToBoundingSphere(
@@ -348,13 +412,41 @@ async function startAutoOrbitAnimation() {
 /**
  * Stops the auto orbit animation and unchecks the toggle switch.
  */
-const stopAutoOrbitAnimation = () => {
+export const stopAutoOrbitAnimation = () => {
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
-  // Uncheck the toggle switch
-  autoOrbitSwitchInput.checked = false;
+  const panelSwitch = document.getElementById("toggle-switch-panel");
+  if (autoOrbitSwitchInput) autoOrbitSwitchInput.checked = false;
+  if (panelSwitch) panelSwitch.checked = false;
 
   // Cancel the animation frame
   cancelAnimationFrame(animationFrameId);
+};
+
+/**
+ * Statically adjusts the Cesium camera based on active slider positions when orbit is disabled.
+ */
+export const updateStaticCameraFromSliders = () => {
+  if (isAutoOrbitEnabled()) return; // Handled dynamically in the loop
+
+  const radiusInput = document.getElementById("orbit-radius-slider");
+  const pitchInput = document.getElementById("orbit-pitch-slider");
+
+  if (radiusInput && pitchInput && flyToCoordinates) {
+    const range = parseFloat(radiusInput.value);
+    const pitchDeg = parseFloat(pitchInput.value);
+    const pitch = Cesium.Math.toRadians(pitchDeg);
+
+    // Update text labels
+    document.getElementById("orbit-radius-val").innerText = range;
+    document.getElementById("orbit-pitch-val").innerText = pitchDeg;
+
+    // Reposition static camera with slight transition
+    flyToBoundingSphere({
+      coords: flyToCoordinates,
+      offset: new Cesium.HeadingPitchRange(cesiumViewer.camera.heading, pitch, range),
+      duration: 0.1
+    });
+  }
 };
 
 /**
@@ -363,10 +455,13 @@ const stopAutoOrbitAnimation = () => {
  * @param {CameraConfig} cameraConfig - The camera configuration.
  */
 async function initializeAutoOrbit(cameraConfig) {
-  // Get the toggle switch from to control auto orbit
+  // Get the toggle switches to control auto orbit
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
+  const panelSwitch = document.getElementById("toggle-switch-panel");
+  
   // Enable auto orbit by default
-  autoOrbitSwitchInput.checked = true;
+  if (autoOrbitSwitchInput) autoOrbitSwitchInput.checked = true;
+  if (panelSwitch) panelSwitch.checked = true;
 
   // Set the camera speed for the auto orbit animation
   setAutoOrbitCameraSpeed(cameraConfig.speed);
@@ -374,12 +469,28 @@ async function initializeAutoOrbit(cameraConfig) {
   // Set the auto orbit type
   await setAutoOrbitType(cameraConfig.orbitType);
 
-  // Add an event listener to the toggle switch to enable/disable auto orbit
-  autoOrbitSwitchInput.addEventListener("click", () => {
+  const toggleHandler = () => {
     if (isAutoOrbitEnabled()) {
       startAutoOrbitAnimation(); // (Re-)start the auto orbit animation
     } else {
       stopAutoOrbitAnimation();
+    }
+  };
+
+  // Add event listener to the toggle switches to enable/disable auto orbit
+  if (autoOrbitSwitchInput) {
+    autoOrbitSwitchInput.addEventListener("change", toggleHandler);
+  }
+  if (panelSwitch) {
+    panelSwitch.addEventListener("change", toggleHandler);
+  }
+
+  // Wire up slider inputs to dynamically shift camera position statically when orbit is off
+  ["speed-slider", "radius-slider", "pitch-slider", "style-select"].forEach(id => {
+    const el = document.getElementById(`orbit-${id}`);
+    if (el) {
+      el.addEventListener("input", updateStaticCameraFromSliders);
+      el.addEventListener("change", updateStaticCameraFromSliders);
     }
   });
 

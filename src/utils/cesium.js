@@ -13,7 +13,7 @@
 // limitations under the License.
 
 
-import { GOOGLE_MAPS_API_KEY } from "../../env.js";
+import { GOOGLE_MAPS_API_KEY } from "../env.js";
 
 // Camera height above the target when flying to a point.
 const CAMERA_HEIGHT = 100;
@@ -264,8 +264,12 @@ export async function updateZoomToRadius(range) {
  */
 function isAutoOrbitEnabled() {
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
+  const panelSwitch = document.getElementById("toggle-switch-panel");
 
-  return autoOrbitSwitchInput.checked;
+  if (panelSwitch) {
+    return panelSwitch.checked;
+  }
+  return autoOrbitSwitchInput ? autoOrbitSwitchInput.checked : false;
 }
 
 /**
@@ -273,8 +277,11 @@ function isAutoOrbitEnabled() {
  */
 async function startAutoOrbitAnimation() {
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
-  // Check the toggle switch
-  autoOrbitSwitchInput.checked = true;
+  const panelSwitch = document.getElementById("toggle-switch-panel");
+  
+  // Check the toggle switches
+  if (autoOrbitSwitchInput) autoOrbitSwitchInput.checked = true;
+  if (panelSwitch) panelSwitch.checked = true;
 
   let center = null;
 
@@ -394,8 +401,9 @@ async function startAutoOrbitAnimation() {
  */
 export const stopAutoOrbitAnimation = () => {
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
-  // Uncheck the toggle switch
-  autoOrbitSwitchInput.checked = false;
+  const panelSwitch = document.getElementById("toggle-switch-panel");
+  if (autoOrbitSwitchInput) autoOrbitSwitchInput.checked = false;
+  if (panelSwitch) panelSwitch.checked = false;
 
   // Cancel the animation frame
   cancelAnimationFrame(animationFrameId);
@@ -434,10 +442,13 @@ export const updateStaticCameraFromSliders = () => {
  * @param {CameraConfig} cameraConfig - The camera configuration.
  */
 async function initializeAutoOrbit(cameraConfig) {
-  // Get the toggle switch from to control auto orbit
+  // Get the toggle switches to control auto orbit
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
+  const panelSwitch = document.getElementById("toggle-switch-panel");
+  
   // Enable auto orbit by default
-  autoOrbitSwitchInput.checked = true;
+  if (autoOrbitSwitchInput) autoOrbitSwitchInput.checked = true;
+  if (panelSwitch) panelSwitch.checked = true;
 
   // Set the camera speed for the auto orbit animation
   setAutoOrbitCameraSpeed(cameraConfig.speed);
@@ -445,14 +456,21 @@ async function initializeAutoOrbit(cameraConfig) {
   // Set the auto orbit type
   await setAutoOrbitType(cameraConfig.orbitType);
 
-  // Add an event listener to the toggle switch to enable/disable auto orbit
-  autoOrbitSwitchInput.addEventListener("click", () => {
+  const toggleHandler = () => {
     if (isAutoOrbitEnabled()) {
       startAutoOrbitAnimation(); // (Re-)start the auto orbit animation
     } else {
       stopAutoOrbitAnimation();
     }
-  });
+  };
+
+  // Add event listener to the toggle switches to enable/disable auto orbit
+  if (autoOrbitSwitchInput) {
+    autoOrbitSwitchInput.addEventListener("change", toggleHandler);
+  }
+  if (panelSwitch) {
+    panelSwitch.addEventListener("change", toggleHandler);
+  }
 
   // Wire up slider inputs to dynamically shift camera position statically when orbit is off
   ["speed-slider", "radius-slider", "pitch-slider", "style-select"].forEach(id => {

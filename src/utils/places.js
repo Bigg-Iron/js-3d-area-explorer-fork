@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { GOOGLE_MAPS_API_KEY } from "../../env.js";
+import { GOOGLE_MAPS_API_KEY } from "../env.js";
 
 /** @type {google.maps.places.PlacesService} */
 let placesService = null;

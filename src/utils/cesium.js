@@ -392,7 +392,7 @@ async function startAutoOrbitAnimation() {
 /**
  * Stops the auto orbit animation and unchecks the toggle switch.
  */
-const stopAutoOrbitAnimation = () => {
+export const stopAutoOrbitAnimation = () => {
   const autoOrbitSwitchInput = document.getElementById("toggle-switch");
   // Uncheck the toggle switch
   autoOrbitSwitchInput.checked = false;

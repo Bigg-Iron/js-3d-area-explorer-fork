@@ -226,17 +226,24 @@ export async function getLocation(location, type) {
  * @param {HTMLInputElement} inputElement - The text input element.
  * @param {Function} onPlaceSelectedCallback - Callback executed when a place is chosen.
  */
-export function initAutocomplete(inputElement, onPlaceSelectedCallback) {
-  if (!inputElement || !google.maps.places) return;
+export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
+  if (!inputElement) return;
 
-  const autocomplete = new google.maps.places.Autocomplete(inputElement, {
-    fields: ["geometry", "name", "formatted_address"]
-  });
+  try {
+    // Dynamic import to handle dynamic script timing perfectly
+    const { Autocomplete } = await google.maps.importLibrary("places");
+    const autocomplete = new Autocomplete(inputElement, {
+      fields: ["geometry", "name", "formatted_address"]
+    });
 
-  autocomplete.addListener("place_changed", () => {
-    const place = autocomplete.getPlace();
-    if (place.geometry && place.geometry.location) {
-      onPlaceSelectedCallback(place);
-    }
-  });
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (place.geometry && place.geometry.location) {
+        onPlaceSelectedCallback(place);
+      }
+    });
+    console.log("✅ Google Places Autocomplete successfully bound to search input.");
+  } catch (error) {
+    console.error(`Error initializing Places Autocomplete: ${error}`);
+  }
 }

@@ -1,230 +1,213 @@
 // Copyright 2026 Google LLC
-// deck.gl Layers Orchestration & Camera Synchronization with CesiumJS
+// Geospatial Overlay Management using Native CesiumJS Clamped Primitives & Entities
 
 import { fleetSimulator } from "./fleet-simulator.js";
+import { stopAutoOrbitAnimation } from "./cesium.js";
 
-let deckInstance = null;
+let viewerRef = null;
 let centerCoords = { lat: 40.74244, lng: -74.006144 };
 let currentMode = "area-explorer"; // "area-explorer", "fleet-operations", "indoor-venues", "bq-analytics"
-let activeLayers = [];
 
-// Helper to calculate deck.gl zoom from Cesium camera height
-function calculateZoomFromHeight(height) {
-  if (height <= 0) return 18;
-  // Logarithmic conversion: range 800m -> zoom ~15, 100m -> zoom ~18
-  return Math.max(1, Math.min(20, 18.2 - Math.log2(height / 100)));
-}
-
-// Synchronize Cesium Camera state to deck.gl ViewState
-function syncCamera(cesiumViewer) {
-  if (!deckInstance || !cesiumViewer) return;
-
-  const camera = cesiumViewer.camera;
-  const cartographic = Cesium.Cartographic.fromCartesian(camera.position);
-
-  if (!cartographic) return;
-
-  const longitude = Cesium.Math.toDegrees(cartographic.longitude);
-  const latitude = Cesium.Math.toDegrees(cartographic.latitude);
-  const height = cartographic.height;
-
-  // Convert angles to degrees
-  const bearing = -Cesium.Math.toDegrees(camera.heading);
-  const pitch = Cesium.Math.toDegrees(camera.pitch) + 90; // deck.gl 0 = straight down
-
-  const zoom = calculateZoomFromHeight(height);
-
-  deckInstance.setProps({
-    viewState: {
-      longitude,
-      latitude,
-      zoom,
-      bearing,
-      pitch,
-      maxPitch: 85,
-      minZoom: 1,
-      maxZoom: 20
+// Helper to clear existing operations entities from Cesium scene
+function clearOpsEntities() {
+  if (!viewerRef) return;
+  const prefixList = ["fleet-", "indoor-", "oriient-", "bq-"];
+  const entitiesToRemove = [];
+  
+  viewerRef.entities.values.forEach(entity => {
+    if (prefixList.some(prefix => entity.id && entity.id.startsWith(prefix))) {
+      entitiesToRemove.push(entity);
     }
+  });
+  
+  entitiesToRemove.forEach(entity => {
+    viewerRef.entities.remove(entity);
   });
 }
 
-// Update Active deck.gl Layers based on current mode and simulators
+// Update Active Cesium Entities based on current mode and simulators
 export function updateDeckLayers() {
-  if (!deckInstance) return;
+  if (!viewerRef) return;
 
-  const layers = [];
+  // 1. Clear previous frames' operational entities
+  clearOpsEntities();
 
-  // 1. FLEET OPERATIONS LAYERS
+  // 2. FLEET OPERATIONS LAYERS (Cesium Clamped Polylines & Points)
   if (currentMode === "fleet-operations") {
     const vehicles = fleetSimulator.getVehicles();
 
-    // Trace vehicle routes
-    layers.push(
-      new deck.PathLayer({
-        id: "fleet-routes",
-        data: vehicles,
-        getPath: d => d.route.map(p => [p.lng, p.lat]),
-        getColor: d => d.status === "DELAYED" ? [255, 42, 95, 180] : [99, 102, 241, 180],
-        getWidth: 3,
-        widthMinPixels: 3,
-        capRounded: true,
-        jointRounded: true
-      })
-    );
+    vehicles.forEach(v => {
+      // Assemble route coordinates
+      const routePositions = [];
+      v.route.forEach(p => {
+        routePositions.push(p.lng, p.lat);
+      });
 
-    // Active vehicle icons (glowing scatterplots & drivers)
-    layers.push(
-      new deck.ScatterplotLayer({
-        id: "fleet-vehicles",
-        data: vehicles,
-        getPosition: d => [d.position.lng, d.position.lat],
-        getRadius: 15,
-        radiusMinPixels: 8,
-        radiusMaxPixels: 20,
-        getFillColor: d => d.status === "DELAYED" ? [255, 42, 95] : [57, 255, 20],
-        getLineColor: [255, 255, 255],
-        lineWidthMinPixels: 2,
-        stroked: true,
-        pickable: true
-      })
-    );
+      const colorHex = v.status === "DELAYED" ? "#ff2a5f" : "#6366f1";
+      const color = Cesium.Color.fromCssColorString(colorHex);
+
+      // Route Path - Clamped to Ground
+      viewerRef.entities.add({
+        id: `fleet-route-${v.id}`,
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArray(routePositions),
+          width: 3.5,
+          material: color.withAlpha(0.7),
+          clampToGround: true // PERFECT CLAMPING TO TERRAIN AND 3D TILES!
+        }
+      });
+
+      // Active Vehicle Point - Clamped to Ground
+      viewerRef.entities.add({
+        id: `fleet-vehicle-${v.id}`,
+        position: Cesium.Cartesian3.fromDegrees(v.position.lng, v.position.lat),
+        point: {
+          pixelSize: 14,
+          color: v.status === "DELAYED" ? Cesium.Color.fromCssColorString("#ff2a5f") : Cesium.Color.fromCssColorString("#39ff14"),
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 2,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND // PERFECT GEOLOCATION CLAMPING!
+        }
+      });
+    });
   }
 
-  // 2. ORIIENT INDOOR GEOMAGNETIC LAYERS
+  // 3. ORIIENT INDOOR GEOMAGNETIC LAYERS (Cesium draped GroundPrimitives)
   if (currentMode === "indoor-venues") {
     const lat = centerCoords.lat;
     const lng = centerCoords.lng;
 
-    // We simulate building indoor layouts relative to the new center
+    // We simulate building floor layout relative to the new search center
     const floorOutline = [
-      [lng - 0.00036, lat - 0.00044],
-      [lng + 0.00064, lat - 0.00044],
-      [lng + 0.00064, lat + 0.00036],
-      [lng - 0.00036, lat + 0.00036],
-      [lng - 0.00036, lat - 0.00044]
+      lng - 0.00036, lat - 0.00044,
+      lng + 0.00064, lat - 0.00044,
+      lng + 0.00064, lat + 0.00036,
+      lng - 0.00036, lat + 0.00036,
+      lng - 0.00036, lat - 0.00044
     ];
 
-    // Store shelves / layout polygons inside building
+    // Transparent Building shell - ClassificationType BOTH drapes perfectly on roofs & ground
+    viewerRef.entities.add({
+      id: "indoor-shell",
+      polygon: {
+        hierarchy: Cesium.Cartesian3.fromDegreesArray(floorOutline),
+        material: Cesium.Color.fromCssColorString("#00e5ff").withAlpha(0.12),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString("#00e5ff"),
+        classificationType: Cesium.ClassificationType.BOTH
+      }
+    });
+
+    // Store aisles inside building
     const aisles = [
-      { path: [[lng - 0.00016, lat - 0.00034], [lng - 0.00016, lat + 0.00026]], name: "Aisle A - Fresh Produce" },
-      { path: [[lng + 0.00004, lat - 0.00034], [lng + 0.00004, lat + 0.00026]], name: "Aisle B - Bakery & Cafe" },
-      { path: [[lng + 0.00024, lat - 0.00034], [lng + 0.00024, lat + 0.00026]], name: "Aisle C - Dry Groceries" },
-      { path: [[lng + 0.00044, lat - 0.00034], [lng + 0.00044, lat + 0.00026]], name: "Checkout Counters" }
+      [lng - 0.00016, lat - 0.00034, lng - 0.00016, lat + 0.00026],
+      [lng + 0.00004, lat - 0.00034, lng + 0.00004, lat + 0.00026],
+      [lng + 0.00024, lat - 0.00034, lng + 0.00024, lat + 0.00026],
+      [lng + 0.00044, lat - 0.00034, lng + 0.00044, lat + 0.00026]
     ];
 
-    // Draw transparent building shell
-    layers.push(
-      new deck.PolygonLayer({
-        id: "indoor-building-shell",
-        data: [{ polygon: floorOutline }],
-        getPolygon: d => d.polygon,
-        getFillColor: [0, 229, 255, 30],
-        getLineColor: [0, 229, 255, 120],
-        getLineWidth: 2,
-        lineWidthMinPixels: 1,
-        stroked: true,
-        filled: true
-      })
-    );
+    aisles.forEach((aisle, i) => {
+      viewerRef.entities.add({
+        id: `indoor-aisle-${i}`,
+        polyline: {
+          positions: Cesium.Cartesian3.fromDegreesArray(aisle),
+          width: 2.5,
+          material: Cesium.Color.WHITE.withAlpha(0.4),
+          clampToGround: true
+        }
+      });
+    });
 
-    // Draw indoor grocery aisles
-    layers.push(
-      new deck.PathLayer({
-        id: "indoor-aisles",
-        data: aisles,
-        getPath: d => d.path,
-        getColor: [255, 255, 255, 100],
-        getWidth: 2,
-        widthMinPixels: 1.5
-      })
-    );
-
-    // Simulated Oriient Geomagnetic "Blue Dot" tracking inside building
-    // Generates a path that cycles through the aisles
+    // Simulated Oriient geomagnetic "Blue Dot" tracking inside building
     const now = Date.now() / 4000;
     const dotLat = lat - 0.00034 + (0.0005 * (Math.sin(now) + 1));
     const dotLng = lng - 0.00016 + (0.0005 * (Math.cos(now * 0.5) + 1));
 
-    // Outer radar ring
-    layers.push(
-      new deck.ScatterplotLayer({
-        id: "oriient-radar",
-        data: [{ position: [dotLng, dotLat] }],
-        getPosition: d => d.position,
-        getRadius: 25,
-        radiusMinPixels: 12,
-        radiusMaxPixels: 40,
-        getFillColor: [0, 229, 255, 40],
-        getLineColor: [0, 229, 255, 200],
-        lineWidthMinPixels: 1.5,
-        stroked: true,
-        filled: true
-      })
-    );
+    // Core pulsing Blue Dot - Clamped to Ground
+    viewerRef.entities.add({
+      id: "oriient-blue-dot",
+      position: Cesium.Cartesian3.fromDegrees(dotLng, dotLat),
+      point: {
+        pixelSize: 10,
+        color: Cesium.Color.fromCssColorString("#00e5ff"),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2.3,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+      }
+    });
 
-    // Core active Blue Dot
-    layers.push(
-      new deck.ScatterplotLayer({
-        id: "oriient-blue-dot",
-        data: [{ position: [dotLng, dotLat] }],
-        getPosition: d => d.position,
-        getRadius: 6,
-        radiusMinPixels: 5,
-        getFillColor: [0, 229, 255],
-        getLineColor: [255, 255, 255],
-        lineWidthMinPixels: 2,
-        stroked: true,
-        filled: true
-      })
-    );
+    // Outer radar ring
+    const radarScale = 16 + 10 * Math.sin(Date.now() / 400);
+    viewerRef.entities.add({
+      id: "oriient-radar",
+      position: Cesium.Cartesian3.fromDegrees(dotLng, dotLat),
+      point: {
+        pixelSize: radarScale,
+        color: Cesium.Color.fromCssColorString("#00e5ff").withAlpha(0.2),
+        outlineColor: Cesium.Color.fromCssColorString("#00e5ff").withAlpha(0.55),
+        outlineWidth: 1.5,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+      }
+    });
   }
 
-  // 3. BIGQUERY SPATIAL ANALYTICS HEATMAPS
+  // 4. BIGQUERY SPATIAL ANALYTICS (Cesium 3D Ground-Clamped Columns)
   if (currentMode === "bq-analytics") {
-    // Generate simulated coordinates representing hundreds of historical delivery tasks
-    // centered around Chelsea Market area
-    const bqData = [];
     const seedLat = centerCoords.lat;
     const seedLng = centerCoords.lng;
 
-    for (let i = 0; i < 400; i++) {
-      // Gaussian distribution around seed coordinates
-      const r = 0.006 * Math.sqrt(-2 * Math.log(Math.random() || 0.001));
-      const theta = 2 * Math.PI * Math.random();
-      const lat = seedLat + r * Math.sin(theta);
-      const lng = seedLng + r * Math.cos(theta);
-      bqData.push({ position: [lng, lat] });
+    // Generate static cluster positions if not cached to keep calculations deterministic
+    if (!window.bqClustersCache) {
+      window.bqClustersCache = [];
+      for (let i = 0; i < 70; i++) {
+        // Gaussian distribution around search center
+        const r = 0.0055 * Math.sqrt(-2 * Math.log(Math.random() || 0.001));
+        const theta = 2 * Math.PI * Math.random();
+        const lat = seedLat + r * Math.sin(theta);
+        const lng = seedLng + r * Math.cos(theta);
+        const count = Math.floor(Math.random() * 450) + 50;
+        window.bqClustersCache.push({ lat, lng, count });
+      }
     }
 
-    // Hexagon clustering layer draped over 3D terrain representing BigQuery delivery data
-    layers.push(
-      new deck.HexagonLayer({
-        id: "bq-heatmap",
-        data: bqData,
-        getPosition: d => d.position,
-        radius: 40,
-        elevationScale: 4,
-        extruded: true,
-        pickable: true,
-        opacity: 0.7,
-        coverage: 0.85,
-        colorRange: [
-          [243, 232, 255],
-          [216, 180, 254],
-          [192, 132, 252],
-          [168, 85, 247],
-          [147, 51, 234],
-          [107, 33, 168]
-        ]
-      })
-    );
-  }
+    window.bqClustersCache.forEach((cluster, i) => {
+      // Map offsets relative to the new search center dynamically
+      const latOffset = cluster.lat - seedLat;
+      const lngOffset = cluster.lng - seedLng;
+      const lat = seedLat + latOffset;
+      const lng = seedLng + lngOffset;
 
-  deckInstance.setProps({ layers });
+      let colorStr = "#f3e8ff";
+      if (cluster.count > 400) colorStr = "#6b21a8";
+      else if (cluster.count > 300) colorStr = "#9333ea";
+      else if (cluster.count > 200) colorStr = "#a855f7";
+      else if (cluster.count > 100) colorStr = "#c084fc";
+      
+      const color = Cesium.Color.fromCssColorString(colorStr);
+
+      // Render 3D cylinder column - Clamped to Ground/Building roof
+      viewerRef.entities.add({
+        id: `bq-column-${i}`,
+        position: Cesium.Cartesian3.fromDegrees(lng, lat),
+        cylinder: {
+          length: cluster.count * 1.5, // Length/Height of the 3D cylinder
+          topRadius: 18.0,
+          bottomRadius: 18.0,
+          material: color.withAlpha(0.75),
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // GLUES IT TO THE BUILDING ROOFS!
+          outline: true,
+          outlineColor: color
+        }
+      });
+    });
+  }
 }
 
-// Set the active Mode
+// Set the active mode
 export function setOpsMode(mode, cesiumViewer) {
+  // CRITICAL: Stop auto orbit immediately to prevent camera fighting / shaking during flight
+  stopAutoOrbitAnimation();
+
   currentMode = mode;
   updateDeckLayers();
 
@@ -272,7 +255,7 @@ export function setOpsMode(mode, cesiumViewer) {
         <div class="ops-section-title">🏢 ORIIENT INDOOR GPS</div>
         <div class="ops-stat-row">
           <span class="ops-stat-label">Active Venue</span>
-          <span class="ops-stat-val">Chelsea Market Retail Hub</span>
+          <span class="ops-stat-val"> Chelsea Market Retail Hub</span>
         </div>
         <div class="ops-stat-row">
           <span class="ops-stat-label">Calibration State</span>
@@ -301,7 +284,6 @@ export function setOpsMode(mode, cesiumViewer) {
     
     // Smooth FlyTo building center
     if (cesiumViewer) {
-      // Move camera to a close, tilted view looking down at the building
       cesiumViewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(centerCoords.lng, centerCoords.lat - 0.001, 200),
         orientation: {
@@ -330,13 +312,13 @@ export function setOpsMode(mode, cesiumViewer) {
         </div>
         <div class="ops-stat-row">
           <span class="ops-stat-label">Visualization Cluster</span>
-          <span class="ops-stat-val">deck.gl Hexagons (Spatial)</span>
+          <span class="ops-stat-val">3D Cylinders (Clamped)</span>
         </div>
       </div>
       <div class="ops-panel-section">
         <div class="ops-section-title">DELIVERY COMPLETED MAP</div>
         <div style="font-size: 0.72rem; color: #cbd5e1; line-height: 1.4;">
-          Aggregated completed logistics orders in the Chelsea area. Height of the hexagons represents historical density of order drop-offs.
+          Aggregated completed logistics orders. Length of the cylinders represents historical density of order drop-offs, perfectly clamped to ground level.
         </div>
       </div>
     `;
@@ -378,32 +360,16 @@ function updateFleetPanelUI() {
   `).join("");
 }
 
-// Initialize the deck.gl overlay
+// Initialize the layers controller
 export function initializeDeckOverlay(cesiumViewer) {
-  if (deckInstance) return;
+  if (viewerRef) return;
+  viewerRef = cesiumViewer;
 
-  deckInstance = new deck.Deck({
-    canvas: "deck-canvas",
-    width: "100%",
-    height: "100%",
-    initialViewState: {
-      longitude: -74.006144,
-      latitude: 40.74244,
-      zoom: 15,
-      pitch: 30,
-      bearing: 0
-    },
-    controller: false, // Let Cesium manage camera inputs
-    layers: []
-  });
-
-  // Connect camera event listeners
-  cesiumViewer.camera.changed.addEventListener(() => {
-    syncCamera(cesiumViewer);
-  });
-
-  // Call sync once at startup
-  syncCamera(cesiumViewer);
+  // We hide/disable the transparent deck-canvas overlay since everything is rendered as native Cesium Entities now
+  const canvas = document.getElementById("deck-canvas");
+  if (canvas) {
+    canvas.style.display = "none";
+  }
 
   // Set up continuous simulation tick loop
   let lastTime = Date.now();
@@ -415,7 +381,7 @@ export function initializeDeckOverlay(cesiumViewer) {
     // Advance Fleet Engine simulation
     fleetSimulator.update(deltaTime);
 
-    // Refresh UI overlays & deck layers
+    // Refresh Cesium Entities and UI
     updateDeckLayers();
     updateFleetPanelUI();
 
@@ -424,23 +390,26 @@ export function initializeDeckOverlay(cesiumViewer) {
 
   requestAnimationFrame(tick);
   
-  console.log("✅ deck.gl overlay successfully initialized and synced with CesiumJS camera.");
+  console.log("✅ Native Cesium ground-clamped overlays successfully initialized.");
 }
 
 // Update operations coordinate center globally
 export function updateDeckCenter(newCoords) {
   if (!newCoords) return;
   
-  // Accept both google.maps.LatLng object and plain lat/lng literal
   const lat = typeof newCoords.lat === "function" ? newCoords.lat() : newCoords.lat;
   const lng = typeof newCoords.lng === "function" ? newCoords.lng() : newCoords.lng;
   
   centerCoords = { lat, lng };
+
+  // Clear BigQuery clusters cache so they re-cluster around the new location
+  window.bqClustersCache = null;
   
   // Propagate center to fleet simulator
   fleetSimulator.setCenter(centerCoords);
   
-  // Refresh deck.gl overlays
+  // Clean old entities and redraw immediately
+  clearOpsEntities();
   updateDeckLayers();
   
   console.log(`✅ Operations center updated to: lat: ${lat}, lng: ${lng}`);

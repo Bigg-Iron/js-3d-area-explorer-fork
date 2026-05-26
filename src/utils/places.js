@@ -122,6 +122,55 @@ export async function getPlaceDetails(placeId) {
 }
 
 /**
+ * Maps a list of place types to one of the 16 available local SVG icons.
+ * @param {string[]} types - The types returned from Google Places API.
+ * @returns {string} One of the 16 valid icon names.
+ */
+function getPoiIconName(types) {
+  if (!types || !Array.isArray(types) || types.length === 0) {
+    return "store";
+  }
+
+  // Create a mapping of keywords to our 16 available icons
+  const mappings = [
+    { icon: "bank", keywords: ["bank", "finance", "accounting", "atm", "money_lender"] },
+    { icon: "bar", keywords: ["bar", "night_club", "pub", "liquor_store", "tavern", "nightlife", "lounge"] },
+    { icon: "bus", keywords: ["bus", "transit", "transportation"] },
+    { icon: "coffee", keywords: ["coffee", "cafe", "bakery", "donut_shop"] },
+    { icon: "doctor", keywords: ["doctor", "hospital", "health", "dentist", "physiotherapist", "pharmacy", "medical", "drugstore", "clinic"] },
+    { icon: "flight", keywords: ["flight", "airport", "aviation"] },
+    { icon: "movie", keywords: ["movie", "theater", "cinema", "entertainment", "performing_arts"] },
+    { icon: "park", keywords: ["park", "zoo", "amusement_park", "aquarium", "museum", "art_gallery", "national_park", "campground", "cemetery", "tourist_attraction"] },
+    { icon: "parking", keywords: ["parking", "garage"] },
+    { icon: "photo_camera", keywords: ["photo_camera", "viewpoint", "landmark", "historical_landmark", "attraction"] },
+    { icon: "restaurant", keywords: ["restaurant", "food", "diner", "meal", "eating", "pizza", "steak", "sushi", "bistro", "buffet", "fast_food", "hamburger"] },
+    { icon: "school", keywords: ["school", "university", "college", "library", "education", "academy"] },
+    { icon: "supermarket", keywords: ["supermarket", "grocery", "convenience_store", "market"] },
+    { icon: "train", keywords: ["train", "subway", "metro", "rail", "station"] },
+    { icon: "store", keywords: ["store", "shopping", "mall", "shop", "boutique", "dealer", "retail"] }
+  ];
+
+  // Try exact match or keyword match on any of the types
+  for (const type of types) {
+    const lowerType = type.toLowerCase();
+    
+    // Check if the type directly matches one of our 16 icon names
+    const directMatch = mappings.find(m => m.icon === lowerType);
+    if (directMatch) return directMatch.icon;
+
+    // Check if the type contains any keyword in our mappings
+    for (const mapping of mappings) {
+      if (mapping.keywords.some(keyword => lowerType.includes(keyword))) {
+        return mapping.icon;
+      }
+    }
+  }
+
+  // Fallback to "store" as a generic business icon
+  return "store";
+}
+
+/**
  * Retrieves the nearby places based on coordinates using modern Place.searchNearby.
  *
  * @param {PoiConfig} poiConfig - Search configurations.
@@ -143,8 +192,7 @@ export async function getNearbyPois(poiConfig, coordinates) {
           "displayName",
           "location",
           "types",
-          "iconBackgroundColor",
-          "iconMaskBaseUri"
+          "iconBackgroundColor"
         ],
         locationRestriction: {
           center: { lat, lng },
@@ -169,11 +217,8 @@ export async function getNearbyPois(poiConfig, coordinates) {
 
     // Map modern results to the format expected by create-markers.js
     const mappedPlaces = allPlaces.map(place => {
-      let iconBaseUri = "assets/icons/poi/establishment";
-      const primaryType = place.types && place.types[0];
-      if (primaryType) {
-        iconBaseUri = `assets/icons/poi/${primaryType}`;
-      }
+      const iconName = getPoiIconName(place.types);
+      const iconBaseUri = `assets/icons/poi/${iconName}`;
 
       return {
         place_id: place.id,
@@ -230,7 +275,21 @@ export async function getNearbyPois(poiConfig, coordinates) {
         return acc;
       }, []);
 
-      return uniquePlaces.slice(0, poiConfig.density);
+      const mappedLegacy = uniquePlaces.slice(0, poiConfig.density).map(place => {
+        const iconName = getPoiIconName(place.types);
+        return {
+          place_id: place.place_id,
+          name: place.name || "",
+          geometry: {
+            location: place.geometry.location
+          },
+          icon_background_color: place.icon_background_color || "#4f46e5",
+          icon_mask_base_uri: `assets/icons/poi/${iconName}`,
+          types: place.types || []
+        };
+      });
+
+      return mappedLegacy;
     }
     
     return [];

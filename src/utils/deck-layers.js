@@ -4,6 +4,7 @@
 import { fleetSimulator } from "./fleet-simulator.js";
 
 let deckInstance = null;
+let centerCoords = { lat: 40.74244, lng: -74.006144 };
 let currentMode = "area-explorer"; // "area-explorer", "fleet-operations", "indoor-venues", "bq-analytics"
 let activeLayers = [];
 
@@ -91,21 +92,24 @@ export function updateDeckLayers() {
 
   // 2. ORIIENT INDOOR GEOMAGNETIC LAYERS
   if (currentMode === "indoor-venues") {
-    // We simulate Chelsea Market building indoor layouts
+    const lat = centerCoords.lat;
+    const lng = centerCoords.lng;
+
+    // We simulate building indoor layouts relative to the new center
     const floorOutline = [
-      [-74.0065, 40.7420],
-      [-74.0055, 40.7420],
-      [-74.0055, 40.7428],
-      [-74.0065, 40.7428],
-      [-74.0065, 40.7420]
+      [lng - 0.00036, lat - 0.00044],
+      [lng + 0.00064, lat - 0.00044],
+      [lng + 0.00064, lat + 0.00036],
+      [lng - 0.00036, lat + 0.00036],
+      [lng - 0.00036, lat - 0.00044]
     ];
 
     // Store shelves / layout polygons inside building
     const aisles = [
-      { path: [[-74.0063, 40.7421], [-74.0063, 40.7427]], name: "Aisle A - Fresh Produce" },
-      { path: [[-74.0061, 40.7421], [-74.0061, 40.7427]], name: "Aisle B - Bakery & Cafe" },
-      { path: [[-74.0059, 40.7421], [-74.0059, 40.7427]], name: "Aisle C - Dry Groceries" },
-      { path: [[-74.0057, 40.7421], [-74.0057, 40.7427]], name: "Checkout Counters" }
+      { path: [[lng - 0.00016, lat - 0.00034], [lng - 0.00016, lat + 0.00026]], name: "Aisle A - Fresh Produce" },
+      { path: [[lng + 0.00004, lat - 0.00034], [lng + 0.00004, lat + 0.00026]], name: "Aisle B - Bakery & Cafe" },
+      { path: [[lng + 0.00024, lat - 0.00034], [lng + 0.00024, lat + 0.00026]], name: "Aisle C - Dry Groceries" },
+      { path: [[lng + 0.00044, lat - 0.00034], [lng + 0.00044, lat + 0.00026]], name: "Checkout Counters" }
     ];
 
     // Draw transparent building shell
@@ -138,8 +142,8 @@ export function updateDeckLayers() {
     // Simulated Oriient Geomagnetic "Blue Dot" tracking inside building
     // Generates a path that cycles through the aisles
     const now = Date.now() / 4000;
-    const dotLat = 40.7421 + (0.0005 * (Math.sin(now) + 1));
-    const dotLng = -74.0063 + (0.0005 * (Math.cos(now * 0.5) + 1));
+    const dotLat = lat - 0.00034 + (0.0005 * (Math.sin(now) + 1));
+    const dotLng = lng - 0.00016 + (0.0005 * (Math.cos(now * 0.5) + 1));
 
     // Outer radar ring
     layers.push(
@@ -180,8 +184,8 @@ export function updateDeckLayers() {
     // Generate simulated coordinates representing hundreds of historical delivery tasks
     // centered around Chelsea Market area
     const bqData = [];
-    const seedLat = 40.74244;
-    const seedLng = -74.006144;
+    const seedLat = centerCoords.lat;
+    const seedLng = centerCoords.lng;
 
     for (let i = 0; i < 400; i++) {
       // Gaussian distribution around seed coordinates
@@ -295,12 +299,11 @@ export function setOpsMode(mode, cesiumViewer) {
       </div>
     `;
     
-    // Smooth FlyTo Chelsea Market building center
+    // Smooth FlyTo building center
     if (cesiumViewer) {
-      const centerLocation = { lat: 40.7424, lng: -74.0061 };
       // Move camera to a close, tilted view looking down at the building
       cesiumViewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(-74.0061, 40.7410, 200),
+        destination: Cesium.Cartesian3.fromDegrees(centerCoords.lng, centerCoords.lat - 0.001, 200),
         orientation: {
           heading: Cesium.Math.toRadians(0),
           pitch: Cesium.Math.toRadians(-35),
@@ -338,10 +341,10 @@ export function setOpsMode(mode, cesiumViewer) {
       </div>
     `;
     
-    // Zoom out slightly to see the hexagon patterns in Chelsea
+    // Zoom out slightly to see the hexagon patterns
     if (cesiumViewer) {
       cesiumViewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(-74.006144, 40.738, 1200),
+        destination: Cesium.Cartesian3.fromDegrees(centerCoords.lng, centerCoords.lat - 0.004, 1200),
         orientation: {
           heading: Cesium.Math.toRadians(0),
           pitch: Cesium.Math.toRadians(-45),
@@ -422,4 +425,23 @@ export function initializeDeckOverlay(cesiumViewer) {
   requestAnimationFrame(tick);
   
   console.log("✅ deck.gl overlay successfully initialized and synced with CesiumJS camera.");
+}
+
+// Update operations coordinate center globally
+export function updateDeckCenter(newCoords) {
+  if (!newCoords) return;
+  
+  // Accept both google.maps.LatLng object and plain lat/lng literal
+  const lat = typeof newCoords.lat === "function" ? newCoords.lat() : newCoords.lat;
+  const lng = typeof newCoords.lng === "function" ? newCoords.lng() : newCoords.lng;
+  
+  centerCoords = { lat, lng };
+  
+  // Propagate center to fleet simulator
+  fleetSimulator.setCenter(centerCoords);
+  
+  // Refresh deck.gl overlays
+  updateDeckLayers();
+  
+  console.log(`✅ Operations center updated to: lat: ${lat}, lng: ${lng}`);
 }

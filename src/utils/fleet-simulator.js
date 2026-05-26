@@ -26,6 +26,31 @@ const CHELSEA_ROUTES = {
 };
 
 class FleetSimulator {
+  setCenter(newCenter) {
+    const oldCenter = { lat: 40.74244, lng: -74.006144 };
+    const deltaLat = newCenter.lat - oldCenter.lat;
+    const deltaLng = newCenter.lng - oldCenter.lng;
+
+    this.vehicles[0].route = CHELSEA_ROUTES.truck_01.map(p => ({
+      lat: p.lat + deltaLat,
+      lng: p.lng + deltaLng
+    }));
+    this.vehicles[1].route = CHELSEA_ROUTES.van_02.map(p => ({
+      lat: p.lat + deltaLat,
+      lng: p.lng + deltaLng
+    }));
+    this.vehicles[2].route = CHELSEA_ROUTES.cargo_03.map(p => ({
+      lat: p.lat + deltaLat,
+      lng: p.lng + deltaLng
+    }));
+
+    this.vehicles.forEach(vehicle => {
+      vehicle.position = { ...vehicle.route[0] };
+      vehicle.currentIndex = 0;
+      vehicle.progress = 0;
+    });
+  }
+
   constructor() {
     this.vehicles = [
       {

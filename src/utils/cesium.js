@@ -320,6 +320,37 @@ async function startAutoOrbitAnimation() {
     const currentTimestamp = Date.now();
     const secondsSinceLastFrame =
       (currentTimestamp - previousFrameTimestamp) / 1000;
+
+    // Dynamically fetch and sync slider inputs in real-time
+    const speedInput = document.getElementById("orbit-speed-slider");
+    if (speedInput) {
+      autoOrbitCameraSpeed = parseFloat(speedInput.value);
+      const valText = document.getElementById("orbit-speed-val");
+      if (valText) valText.innerText = autoOrbitCameraSpeed.toFixed(1);
+    }
+
+    const styleInput = document.getElementById("orbit-style-select");
+    if (styleInput) {
+      autoOrbitType = styleInput.value;
+    }
+
+    const radiusInput = document.getElementById("orbit-radius-slider");
+    let currentBaseRange = initialRange;
+    if (radiusInput) {
+      currentBaseRange = parseFloat(radiusInput.value);
+      const valText = document.getElementById("orbit-radius-val");
+      if (valText) valText.innerText = currentBaseRange;
+    }
+
+    const pitchInput = document.getElementById("orbit-pitch-slider");
+    let currentBasePitch = initialPitch;
+    if (pitchInput) {
+      const pitchDeg = parseFloat(pitchInput.value);
+      currentBasePitch = Cesium.Math.toRadians(pitchDeg);
+      const valText = document.getElementById("orbit-pitch-val");
+      if (valText) valText.innerText = pitchDeg;
+    }
+
     const radian =
       secondsSinceLastFrame * (autoOrbitCameraSpeed / 60) * Math.PI * 2;
 
@@ -329,16 +360,16 @@ async function startAutoOrbitAnimation() {
 
     // change the camera pitch by time elapsed (pitch is the up down rotation of the camera)
     const dynamicPitch =
-      initialPitch + pitchAmplitude * Math.sin(totalHeadingChange);
+      currentBasePitch + pitchAmplitude * Math.sin(totalHeadingChange);
     const pitch =
-      autoOrbitType === "dynamic-orbit" ? dynamicPitch : initialPitch;
+      autoOrbitType === "dynamic-orbit" ? dynamicPitch : currentBasePitch;
 
     // change the camera range by time elapsed (range is the distance of the camera from the center)
     const dynamicRange =
-      initialRange +
-      RANGE_AMPLITUDE_RELATIVE * initialRange * -Math.sin(totalHeadingChange);
+      currentBaseRange +
+      RANGE_AMPLITUDE_RELATIVE * currentBaseRange * -Math.sin(totalHeadingChange);
     const range =
-      autoOrbitType === "dynamic-orbit" ? dynamicRange : initialRange;
+      autoOrbitType === "dynamic-orbit" ? dynamicRange : currentBaseRange;
 
     // update the camera position and orientation
     cesiumViewer.camera.flyToBoundingSphere(
@@ -371,6 +402,33 @@ const stopAutoOrbitAnimation = () => {
 };
 
 /**
+ * Statically adjusts the Cesium camera based on active slider positions when orbit is disabled.
+ */
+export const updateStaticCameraFromSliders = () => {
+  if (isAutoOrbitEnabled()) return; // Handled dynamically in the loop
+
+  const radiusInput = document.getElementById("orbit-radius-slider");
+  const pitchInput = document.getElementById("orbit-pitch-slider");
+
+  if (radiusInput && pitchInput && flyToCoordinates) {
+    const range = parseFloat(radiusInput.value);
+    const pitchDeg = parseFloat(pitchInput.value);
+    const pitch = Cesium.Math.toRadians(pitchDeg);
+
+    // Update text labels
+    document.getElementById("orbit-radius-val").innerText = range;
+    document.getElementById("orbit-pitch-val").innerText = pitchDeg;
+
+    // Reposition static camera with slight transition
+    flyToBoundingSphere({
+      coords: flyToCoordinates,
+      offset: new Cesium.HeadingPitchRange(cesiumViewer.camera.heading, pitch, range),
+      duration: 0.1
+    });
+  }
+};
+
+/**
  * Initializes auto orbit event listeners.
  *
  * @param {CameraConfig} cameraConfig - The camera configuration.
@@ -393,6 +451,15 @@ async function initializeAutoOrbit(cameraConfig) {
       startAutoOrbitAnimation(); // (Re-)start the auto orbit animation
     } else {
       stopAutoOrbitAnimation();
+    }
+  });
+
+  // Wire up slider inputs to dynamically shift camera position statically when orbit is off
+  ["speed-slider", "radius-slider", "pitch-slider", "style-select"].forEach(id => {
+    const el = document.getElementById(`orbit-${id}`);
+    if (el) {
+      el.addEventListener("input", updateStaticCameraFromSliders);
+      el.addEventListener("change", updateStaticCameraFromSliders);
     }
   });
 

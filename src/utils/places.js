@@ -219,3 +219,24 @@ export async function getLocation(location, type) {
     throw new Error("Invalid type provided to getLocation.");
   }
 }
+
+/**
+ * Initializes Google Places Autocomplete on a given text input.
+ *
+ * @param {HTMLInputElement} inputElement - The text input element.
+ * @param {Function} onPlaceSelectedCallback - Callback executed when a place is chosen.
+ */
+export function initAutocomplete(inputElement, onPlaceSelectedCallback) {
+  if (!inputElement || !google.maps.places) return;
+
+  const autocomplete = new google.maps.places.Autocomplete(inputElement, {
+    fields: ["geometry", "name", "formatted_address"]
+  });
+
+  autocomplete.addListener("place_changed", () => {
+    const place = autocomplete.getPlace();
+    if (place.geometry && place.geometry.location) {
+      onPlaceSelectedCallback(place);
+    }
+  });
+}

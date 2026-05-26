@@ -15,11 +15,11 @@
 import { loadConfig } from "./utils/config.js";
 import { performFlyTo, initializeCesiumViewer, cesiumViewer } from "./utils/cesium.js";
 
-import { getNearbyPois } from "./utils/places.js";
+import { getNearbyPois, initAutocomplete } from "./utils/places.js";
 import createMarkers from "./utils/create-markers.js";
 
 // Import our deck.gl geospatial operations layer managers
-import { initializeDeckOverlay, setOpsMode } from "./utils/deck-layers.js";
+import { initializeDeckOverlay, setOpsMode, updateDeckCenter } from "./utils/deck-layers.js";
 
 // Here we load the configuration.
 // The current implementation loads our local `config.json`.
@@ -74,6 +74,31 @@ export async function main() {
     
     // Wire up dynamic menu mode tabs
     setupOperationsMenu();
+
+    // Wire up dynamic Google Places Search Autocomplete
+    const searchInput = document.getElementById("place-search-input");
+    if (searchInput) {
+      initAutocomplete(searchInput, async (place) => {
+        const loc = place.geometry.location;
+        const targetCoords = { lat: loc.lat(), lng: loc.lng() };
+
+        // Reset dynamic camera sliders to default values for the new city center
+        const radiusSlider = document.getElementById("orbit-radius-slider");
+        const pitchSlider = document.getElementById("orbit-pitch-slider");
+        if (radiusSlider) radiusSlider.value = 800;
+        if (pitchSlider) pitchSlider.value = -30;
+
+        // 1. Smoothly fly Cesium camera to the newly searched place
+        await performFlyTo(targetCoords);
+
+        // 2. Propagate coordinates shift to our deck.gl layers & fleet simulator
+        updateDeckCenter(loc);
+
+        // 3. Re-enrich and draw Places POI 3D markers centered on new search coords
+        const pois = await getNearbyPois(poiConfig, loc);
+        await createMarkers(pois, loc);
+      });
+    }
 
     if (coordinates.lat && coordinates.lng) {
       console.log("Inside main.js - Initializing 3D Spatial Operations Control.");

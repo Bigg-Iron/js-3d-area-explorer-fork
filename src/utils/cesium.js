@@ -153,11 +153,24 @@ async function adjustCoordinateHeight(coords) {
   const { lat, lng } = coords;
 
   const cartesian = Cesium.Cartesian3.fromDegrees(lng, lat);
-  const clampedCoords = await cesiumViewer.scene.clampToHeightMostDetailed([
-    cartesian,
-  ]);
+  try {
+    const clampedCoords = await cesiumViewer.scene.clampToHeightMostDetailed([
+      cartesian,
+    ]);
 
-  const cartographic = Cesium.Cartographic.fromCartesian(clampedCoords[0]);
+    if (clampedCoords && clampedCoords[0]) {
+      const cartographic = Cesium.Cartographic.fromCartesian(clampedCoords[0]);
+      return Cesium.Cartesian3.fromRadians(
+        cartographic.longitude,
+        cartographic.latitude,
+        cartographic.height + CAMERA_HEIGHT
+      );
+    }
+  } catch (err) {
+    console.warn("⚠️ clampToHeightMostDetailed failed, using fallback:", err);
+  }
+
+  const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
   return Cesium.Cartesian3.fromRadians(
     cartographic.longitude,
     cartographic.latitude,

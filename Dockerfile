@@ -21,4 +21,4 @@ EXPOSE 8080
 
 # Configure secure runtime key injection
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["http-server", "-p", "8080", "."]
+CMD ["http-server", "-p", "8080", "-c-1", "."]

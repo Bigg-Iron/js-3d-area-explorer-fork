@@ -11,9 +11,11 @@ if [ -z "$GOOGLE_MAPS_API_KEY" ]; then
   echo "⚠️ WARNING: GOOGLE_MAPS_API_KEY environment variable is not set."
   echo "⚠️ env.js remains at default. Google Maps Platform layers may fail to render."
 else
-  echo "✅ Detected GOOGLE_MAPS_API_KEY. Injecting into env.js..."
-  # Substitute the placeholder with the environment variable
-  sed -i "s|<API_KEY>|${GOOGLE_MAPS_API_KEY}|g" env.js
+  echo "✅ Detected GOOGLE_MAPS_API_KEY. Cleaning quotes and injecting into env.js..."
+  # Clean any accidental double/single quotes from the environment variable
+  CLEANED_KEY=$(echo "$GOOGLE_MAPS_API_KEY" | tr -d '"' | tr -d "'")
+  # Substitute the placeholder with the cleaned key
+  sed -i "s|<API_KEY>|${CLEANED_KEY}|g" env.js
   echo "✅ env.js successfully populated at runtime."
 fi
 

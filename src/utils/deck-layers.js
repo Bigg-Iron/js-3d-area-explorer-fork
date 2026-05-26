@@ -8,14 +8,14 @@ let viewerRef = null;
 let centerCoords = { lat: 40.74244, lng: -74.006144 };
 let currentMode = "area-explorer"; // "area-explorer", "fleet-operations", "indoor-venues", "bq-analytics"
 
-// Helper to clear existing operations entities from Cesium scene
-function clearOpsEntities() {
+// Clear only dynamic moving entities from Cesium scene on every frame
+function clearDynamicEntities() {
   if (!viewerRef) return;
-  const prefixList = ["fleet-", "indoor-", "oriient-", "bq-"];
+  const dynamicPrefixes = ["fleet-vehicle-", "oriient-blue-dot", "oriient-radar"];
   const entitiesToRemove = [];
   
   viewerRef.entities.values.forEach(entity => {
-    if (prefixList.some(prefix => entity.id && entity.id.startsWith(prefix))) {
+    if (dynamicPrefixes.some(prefix => entity.id && entity.id.startsWith(prefix))) {
       entitiesToRemove.push(entity);
     }
   });
@@ -25,19 +25,35 @@ function clearOpsEntities() {
   });
 }
 
-// Update Active Cesium Entities based on current mode and simulators
-export function updateDeckLayers() {
+// Clear static elements (routes, shell layout, BQ cylinder bars)
+function clearStaticEntities() {
+  if (!viewerRef) return;
+  const staticPrefixes = ["fleet-route-", "indoor-shell", "indoor-aisle-", "bq-column-"];
+  const entitiesToRemove = [];
+  
+  viewerRef.entities.values.forEach(entity => {
+    if (staticPrefixes.some(prefix => entity.id && entity.id.startsWith(prefix))) {
+      entitiesToRemove.push(entity);
+    }
+  });
+  
+  entitiesToRemove.forEach(entity => {
+    viewerRef.entities.remove(entity);
+  });
+}
+
+// Draw static operational elements once per mode switch or center translation
+export function drawStaticEntities() {
   if (!viewerRef) return;
 
-  // 1. Clear previous frames' operational entities
-  clearOpsEntities();
+  // 1. Clear previous static representations
+  clearStaticEntities();
 
-  // 2. FLEET OPERATIONS LAYERS (Cesium Clamped Polylines & Points)
+  // 2. FLEET ENGINE STATIC ROUTES
   if (currentMode === "fleet-operations") {
     const vehicles = fleetSimulator.getVehicles();
 
     vehicles.forEach(v => {
-      // Assemble route coordinates
       const routePositions = [];
       v.route.forEach(p => {
         routePositions.push(p.lng, p.lat);
@@ -46,38 +62,24 @@ export function updateDeckLayers() {
       const colorHex = v.status === "DELAYED" ? "#ff2a5f" : "#6366f1";
       const color = Cesium.Color.fromCssColorString(colorHex);
 
-      // Route Path - Clamped to Ground
+      // Draw the static route polyline clamped perfectly to 3D terrain/roads
       viewerRef.entities.add({
         id: `fleet-route-${v.id}`,
         polyline: {
           positions: Cesium.Cartesian3.fromDegreesArray(routePositions),
           width: 3.5,
           material: color.withAlpha(0.7),
-          clampToGround: true // PERFECT CLAMPING TO TERRAIN AND 3D TILES!
-        }
-      });
-
-      // Active Vehicle Point - Clamped to Ground
-      viewerRef.entities.add({
-        id: `fleet-vehicle-${v.id}`,
-        position: Cesium.Cartesian3.fromDegrees(v.position.lng, v.position.lat),
-        point: {
-          pixelSize: 14,
-          color: v.status === "DELAYED" ? Cesium.Color.fromCssColorString("#ff2a5f") : Cesium.Color.fromCssColorString("#39ff14"),
-          outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 2,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND // PERFECT GEOLOCATION CLAMPING!
+          clampToGround: true
         }
       });
     });
   }
 
-  // 3. ORIIENT INDOOR GEOMAGNETIC LAYERS (Cesium draped GroundPrimitives)
+  // 3. ORIIENT INDOOR LAYOUT & AISLES
   if (currentMode === "indoor-venues") {
     const lat = centerCoords.lat;
     const lng = centerCoords.lng;
 
-    // We simulate building floor layout relative to the new search center
     const floorOutline = [
       lng - 0.00036, lat - 0.00044,
       lng + 0.00064, lat - 0.00044,
@@ -86,7 +88,7 @@ export function updateDeckLayers() {
       lng - 0.00036, lat - 0.00044
     ];
 
-    // Transparent Building shell - ClassificationType BOTH drapes perfectly on roofs & ground
+    // building shell outline draped flawlessly across rooftops and floors
     viewerRef.entities.add({
       id: "indoor-shell",
       polygon: {
@@ -98,7 +100,6 @@ export function updateDeckLayers() {
       }
     });
 
-    // Store aisles inside building
     const aisles = [
       [lng - 0.00016, lat - 0.00034, lng - 0.00016, lat + 0.00026],
       [lng + 0.00004, lat - 0.00034, lng + 0.00004, lat + 0.00026],
@@ -117,13 +118,114 @@ export function updateDeckLayers() {
         }
       });
     });
+  }
 
-    // Simulated Oriient geomagnetic "Blue Dot" tracking inside building
+  // 4. BIGQUERY SPATIAL ANALYTICS (Highly Optimized 3D Cylinder Heatmaps)
+  if (currentMode === "bq-analytics") {
+    const seedLat = centerCoords.lat;
+    const seedLng = centerCoords.lng;
+
+    // Cache clusters statically to prevent infinite random redraws
+    if (!window.bqClustersCache) {
+      window.bqClustersCache = [];
+      for (let i = 0; i < 70; i++) {
+        const r = 0.0055 * Math.sqrt(-2 * Math.log(Math.random() || 0.001));
+        const theta = 2 * Math.PI * Math.random();
+        const lat = seedLat + r * Math.sin(theta);
+        const lng = seedLng + r * Math.cos(theta);
+        const count = Math.floor(Math.random() * 450) + 50;
+        window.bqClustersCache.push({ lat, lng, count });
+      }
+    }
+
+    const bqCoords = window.bqClustersCache.map(cluster => {
+      const latOffset = cluster.lat - seedLat;
+      const lngOffset = cluster.lng - seedLng;
+      return Cesium.Cartesian3.fromDegrees(seedLng + lngOffset, seedLat + latOffset);
+    });
+
+    // Clamp coordinates once to rooftops & streets in a single highly optimized call
+    viewerRef.scene.clampToHeightMostDetailed(bqCoords).then(clampedCoords => {
+      // Guard against rapid mode switching
+      if (currentMode !== "bq-analytics") return;
+
+      clampedCoords.forEach((clampedCoord, i) => {
+        const cluster = window.bqClustersCache[i];
+        
+        let colorStr = "#f3e8ff";
+        if (cluster.count > 400) colorStr = "#6b21a8";
+        else if (cluster.count > 300) colorStr = "#9333ea";
+        else if (cluster.count > 200) colorStr = "#a855f7";
+        else if (cluster.count > 100) colorStr = "#c084fc";
+        
+        const color = Cesium.Color.fromCssColorString(colorStr);
+        const length = cluster.count * 1.5;
+
+        // Position cylinder center at: Rooftop elevation + (Length / 2)
+        // This ensures the BASE sits perfectly flat on Google 3D Tiles rooftops and streets!
+        const cartographic = Cesium.Cartographic.fromCartesian(clampedCoord);
+        const centerPosition = Cesium.Cartesian3.fromRadians(
+          cartographic.longitude,
+          cartographic.latitude,
+          cartographic.height + (length / 2)
+        );
+
+        viewerRef.entities.add({
+          id: `bq-column-${i}`,
+          position: centerPosition,
+          cylinder: {
+            length: length,
+            topRadius: 18.0,
+            bottomRadius: 18.0,
+            material: color.withAlpha(0.75),
+            outline: true,
+            outlineColor: color
+          }
+        });
+      });
+      console.log("✅ BigQuery 3D columns clamped perfectly onto building rooftops and streets.");
+    }).catch(err => {
+      console.error("Error clamping BigQuery columns to heights:", err);
+    });
+  }
+}
+
+// Update Dynamic operational overlays smoothly on every frame tick
+export function updateDynamicEntities() {
+  if (!viewerRef) return;
+
+  // Clear last frame's moving elements
+  clearDynamicEntities();
+
+  // 1. FLEET DYNAMIC VEHICLES
+  if (currentMode === "fleet-operations") {
+    const vehicles = fleetSimulator.getVehicles();
+
+    vehicles.forEach(v => {
+      viewerRef.entities.add({
+        id: `fleet-vehicle-${v.id}`,
+        position: Cesium.Cartesian3.fromDegrees(v.position.lng, v.position.lat),
+        point: {
+          pixelSize: 14,
+          color: v.status === "DELAYED" ? Cesium.Color.fromCssColorString("#ff2a5f") : Cesium.Color.fromCssColorString("#39ff14"),
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 2,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+        }
+      });
+    });
+  }
+
+  // 2. ORIIENT INDOOR PULSING BLUE DOT
+  if (currentMode === "indoor-venues") {
+    const lat = centerCoords.lat;
+    const lng = centerCoords.lng;
+
     const now = Date.now() / 4000;
     const dotLat = lat - 0.00034 + (0.0005 * (Math.sin(now) + 1));
     const dotLng = lng - 0.00016 + (0.0005 * (Math.cos(now * 0.5) + 1));
 
-    // Core pulsing Blue Dot - Clamped to Ground
+    // Core Blue Dot
     viewerRef.entities.add({
       id: "oriient-blue-dot",
       position: Cesium.Cartesian3.fromDegrees(dotLng, dotLat),
@@ -136,7 +238,7 @@ export function updateDeckLayers() {
       }
     });
 
-    // Outer radar ring
+    // Pulse radar ring
     const radarScale = 16 + 10 * Math.sin(Date.now() / 400);
     viewerRef.entities.add({
       id: "oriient-radar",
@@ -150,65 +252,24 @@ export function updateDeckLayers() {
       }
     });
   }
-
-  // 4. BIGQUERY SPATIAL ANALYTICS (Cesium 3D Ground-Clamped Columns)
-  if (currentMode === "bq-analytics") {
-    const seedLat = centerCoords.lat;
-    const seedLng = centerCoords.lng;
-
-    // Generate static cluster positions if not cached to keep calculations deterministic
-    if (!window.bqClustersCache) {
-      window.bqClustersCache = [];
-      for (let i = 0; i < 70; i++) {
-        // Gaussian distribution around search center
-        const r = 0.0055 * Math.sqrt(-2 * Math.log(Math.random() || 0.001));
-        const theta = 2 * Math.PI * Math.random();
-        const lat = seedLat + r * Math.sin(theta);
-        const lng = seedLng + r * Math.cos(theta);
-        const count = Math.floor(Math.random() * 450) + 50;
-        window.bqClustersCache.push({ lat, lng, count });
-      }
-    }
-
-    window.bqClustersCache.forEach((cluster, i) => {
-      // Map offsets relative to the new search center dynamically
-      const latOffset = cluster.lat - seedLat;
-      const lngOffset = cluster.lng - seedLng;
-      const lat = seedLat + latOffset;
-      const lng = seedLng + lngOffset;
-
-      let colorStr = "#f3e8ff";
-      if (cluster.count > 400) colorStr = "#6b21a8";
-      else if (cluster.count > 300) colorStr = "#9333ea";
-      else if (cluster.count > 200) colorStr = "#a855f7";
-      else if (cluster.count > 100) colorStr = "#c084fc";
-      
-      const color = Cesium.Color.fromCssColorString(colorStr);
-
-      // Render 3D cylinder column - Clamped to Ground/Building roof
-      viewerRef.entities.add({
-        id: `bq-column-${i}`,
-        position: Cesium.Cartesian3.fromDegrees(lng, lat),
-        cylinder: {
-          length: cluster.count * 1.5, // Length/Height of the 3D cylinder
-          topRadius: 18.0,
-          bottomRadius: 18.0,
-          material: color.withAlpha(0.75),
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND, // GLUES IT TO THE BUILDING ROOFS!
-          outline: true,
-          outlineColor: color
-        }
-      });
-    });
-  }
 }
 
-// Set the active mode
+// Refresh active visual states
+export function updateDeckLayers() {
+  updateDynamicEntities();
+}
+
+// Configure active operations mode globally
 export function setOpsMode(mode, cesiumViewer) {
-  // CRITICAL: Stop auto orbit immediately to prevent camera fighting / shaking during flight
+  // Clear any camera fight orbit animations
   stopAutoOrbitAnimation();
 
   currentMode = mode;
+
+  // Redraw all static structures immediately for the new mode
+  drawStaticEntities();
+
+  // Draw initial dynamic elements immediately
   updateDeckLayers();
 
   const telemetryPanel = document.getElementById("ops-telemetry-panel");
@@ -221,7 +282,7 @@ export function setOpsMode(mode, cesiumViewer) {
 
   telemetryPanel.classList.remove("hidden");
 
-  // Load telemetry stats dynamically based on mode
+  // Load telemetry panel UI templates
   if (mode === "fleet-operations") {
     telemetryPanel.innerHTML = `
       <div class="ops-panel-section">
@@ -282,7 +343,6 @@ export function setOpsMode(mode, cesiumViewer) {
       </div>
     `;
     
-    // Smooth FlyTo building center
     if (cesiumViewer) {
       cesiumViewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(centerCoords.lng, centerCoords.lat - 0.001, 200),
@@ -323,7 +383,6 @@ export function setOpsMode(mode, cesiumViewer) {
       </div>
     `;
     
-    // Zoom out slightly to see the hexagon patterns
     if (cesiumViewer) {
       cesiumViewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(centerCoords.lng, centerCoords.lat - 0.004, 1200),
@@ -365,7 +424,7 @@ export function initializeDeckOverlay(cesiumViewer) {
   if (viewerRef) return;
   viewerRef = cesiumViewer;
 
-  // We hide/disable the transparent deck-canvas overlay since everything is rendered as native Cesium Entities now
+  // Deprecate transparent deck-canvas overlay
   const canvas = document.getElementById("deck-canvas");
   if (canvas) {
     canvas.style.display = "none";
@@ -381,7 +440,7 @@ export function initializeDeckOverlay(cesiumViewer) {
     // Advance Fleet Engine simulation
     fleetSimulator.update(deltaTime);
 
-    // Refresh Cesium Entities and UI
+    // Refresh Dynamic Cesium Entities (vehicles & blue dot position updates)
     updateDeckLayers();
     updateFleetPanelUI();
 
@@ -390,6 +449,9 @@ export function initializeDeckOverlay(cesiumViewer) {
 
   requestAnimationFrame(tick);
   
+  // Render initial static elements
+  drawStaticEntities();
+
   console.log("✅ Native Cesium ground-clamped overlays successfully initialized.");
 }
 
@@ -408,8 +470,8 @@ export function updateDeckCenter(newCoords) {
   // Propagate center to fleet simulator
   fleetSimulator.setCenter(centerCoords);
   
-  // Clean old entities and redraw immediately
-  clearOpsEntities();
+  // Redraw static entities immediately centered on the new location
+  drawStaticEntities();
   updateDeckLayers();
   
   console.log(`✅ Operations center updated to: lat: ${lat}, lng: ${lng}`);

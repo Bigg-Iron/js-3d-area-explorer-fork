@@ -47,19 +47,36 @@ let markerHoverHandler = null;
  */
 let selectedMarkerId = null;
 
-/**
- * Asynchronously fetches and parses SVG content from a URL.
- * @param {string} url - URL of the SVG resource.
- * @returns {Promise<Element>} A promise resolving to the SVG element.
- * @throws {Error} Throws an error if the fetch request fails.
- */
+// Track the IDs of entities created by this module so we can cleanly clear them before redrawing
+let createdEntityIds = [];
+
 async function fetchSvgContent(url) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch SVG from ${url}.`);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Status ${response.status}`);
+    }
+    return new DOMParser().parseFromString(await response.text(), "image/svg+xml")
+      .documentElement;
+  } catch (error) {
+    console.warn(`⚠️ Failed to fetch SVG from ${url}. Falling back to default store icon.`, error);
+    // If we weren't already trying to fetch store.svg or empty-marker.svg, try to load store.svg
+    if (url !== "assets/icons/poi/store.svg" && url !== "assets/icons/empty-marker.svg") {
+      try {
+        const fallbackResponse = await fetch("assets/icons/poi/store.svg");
+        if (fallbackResponse.ok) {
+          return new DOMParser().parseFromString(await fallbackResponse.text(), "image/svg+xml")
+            .documentElement;
+        }
+      } catch (fallbackErr) {
+        console.error("Critical fallback SVG fetch failed:", fallbackErr);
+      }
+    }
+    // Return a dummy SVG element to prevent any code from crashing
+    const dummySvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    dummySvg.setAttribute("viewBox", "0 0 24 24");
+    return dummySvg;
   }
-  return new DOMParser().parseFromString(await response.text(), "image/svg+xml")
-    .documentElement;
 }
 
 /**
@@ -406,6 +423,15 @@ async function createMarkers(pois, centerCoordinates) {
     return;
   }
 
+  // Clear previously created markers and center marker cleanly
+  createdEntityIds.forEach((id) => {
+    const entity = cesiumViewer.entities.getById(id);
+    if (entity) {
+      cesiumViewer.entities.remove(entity);
+    }
+  });
+  createdEntityIds = [];
+
   // If a marker was selected before, but isn't in POIs list anymore,
   // reset the marker selection and close the sidebar.
   if (
@@ -448,6 +474,8 @@ async function createMarkers(pois, centerCoordinates) {
         markerSvg,
       }),
     });
+
+    createdEntityIds.push(id);
 
     // Select the marker if it was rerendered and already selected before
     if (selectedMarkerId === id) {

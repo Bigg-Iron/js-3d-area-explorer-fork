@@ -97,7 +97,20 @@ async function createTileset() {
     // Add tileset to the scene
     cesiumViewer.scene.primitives.add(tileset);
   } catch (error) {
-    console.error(`Error creating tileset: ${error}`);
+    console.warn(`Error creating Google 3D tileset: ${error}. Attempting EEA / OpenStreetMap fallback...`);
+    try {
+      // Fallback: load default Cesium OSM buildings for 3D representation
+      const osmBuildings = await Cesium.createOsmBuildingsAsync();
+      cesiumViewer.scene.primitives.add(osmBuildings);
+      
+      // Inject fallback notification
+      const fallbackDiv = document.createElement("div");
+      fallbackDiv.className = "fallback-toast";
+      fallbackDiv.innerHTML = "⚠️ Google 3D Tiles unavailable. Active EEA OpenStreetMap 3D fallback.";
+      document.body.appendChild(fallbackDiv);
+    } catch (fallbackError) {
+      console.error(`Error loading fallback OSM Buildings: ${fallbackError}`);
+    }
   }
 }
 

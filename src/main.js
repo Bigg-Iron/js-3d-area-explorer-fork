@@ -13,10 +13,13 @@
 // limitations under the License.
 
 import { loadConfig } from "./utils/config.js";
-import { performFlyTo, initializeCesiumViewer } from "./utils/cesium.js";
+import { performFlyTo, initializeCesiumViewer, cesiumViewer } from "./utils/cesium.js";
 
 import { getNearbyPois } from "./utils/places.js";
 import createMarkers from "./utils/create-markers.js";
+
+// Import our deck.gl geospatial operations layer managers
+import { initializeDeckOverlay, setOpsMode } from "./utils/deck-layers.js";
 
 // Here we load the configuration.
 // The current implementation loads our local `config.json`.
@@ -33,12 +36,47 @@ const {
   camera: cameraConfig,
 } = config;
 
+// Setup floating menu tab click handlers for mode switching
+function setupOperationsMenu() {
+  const tabs = [
+    { id: "tab-explorer", mode: "area-explorer" },
+    { id: "tab-fleet", mode: "fleet-operations" },
+    { id: "tab-indoor", mode: "indoor-venues" },
+    { id: "tab-bq", mode: "bq-analytics" }
+  ];
+
+  tabs.forEach(tab => {
+    const btn = document.getElementById(tab.id);
+    if (!btn) return;
+
+    btn.addEventListener("click", () => {
+      // Clear active class from all tabs
+      tabs.forEach(t => {
+        const otherBtn = document.getElementById(t.id);
+        if (otherBtn) otherBtn.classList.remove("active");
+      });
+
+      // Activate clicked tab
+      btn.classList.add("active");
+
+      // Switch operations mode
+      setOpsMode(tab.mode, cesiumViewer);
+    });
+  });
+}
+
 export async function main() {
   try {
     await initializeCesiumViewer(coordinates, cameraConfig);
 
+    // Initialize our premium deck.gl overlay on top of CesiumJS viewer
+    initializeDeckOverlay(cesiumViewer);
+    
+    // Wire up dynamic menu mode tabs
+    setupOperationsMenu();
+
     if (coordinates.lat && coordinates.lng) {
-      console.log("Inside main.js ")
+      console.log("Inside main.js - Initializing 3D Spatial Operations Control.");
       // move the camera to face the main location's coordinates
       await performFlyTo(coordinates);
       // based on the given main location, fetch the surrounding POIs of the selected categories

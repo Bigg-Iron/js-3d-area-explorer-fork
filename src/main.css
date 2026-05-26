@@ -347,3 +347,258 @@ input[type="range"]::-moz-range-track {
     opacity: 1;
   }
 }
+
+/* ==========================================================================
+   SPATIAL OPERATIONS DASHBOARD - FUTURISTIC DARK MODE UI
+   ========================================================================== */
+
+:root {
+  --dark-bg: rgba(15, 23, 42, 0.85);
+  --dark-border: rgba(99, 102, 241, 0.3);
+  --neon-blue: #00e5ff;
+  --neon-green: #39ff14;
+  --neon-red: #ff2a5f;
+  --neon-purple: #d500f9;
+  --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --font-family: 'Space Grotesk', 'Inter', sans-serif !important;
+}
+
+body {
+  font-family: 'Inter', sans-serif !important;
+  background-color: #020617 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Floating Header Overlay */
+.ops-header-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: var(--dark-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--dark-border);
+  border-radius: 12px;
+  box-shadow: var(--glass-glow);
+  pointer-events: auto;
+}
+
+.ops-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ops-title-group h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  color: #ffffff !important;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.pulse-icon-red {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: var(--neon-red);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--neon-red);
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 42, 95, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 42, 95, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 42, 95, 0); }
+}
+
+.system-status-pill {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  background: rgba(57, 255, 20, 0.15);
+  border: 1px solid var(--neon-green);
+  color: var(--neon-green);
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+/* Tabs */
+.ops-mode-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.ops-tab {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #94a3b8 !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  padding: 6px 16px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: none !important;
+}
+
+.ops-tab:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.ops-tab.active {
+  background: rgba(99, 102, 241, 0.25) !important;
+  color: #ffffff !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4) !important;
+}
+
+/* Floating Telemetry Panel */
+.ops-telemetry-panel {
+  position: absolute;
+  top: 90px;
+  left: 20px;
+  width: 320px;
+  z-index: 999;
+  padding: 20px;
+  background: var(--dark-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--dark-border);
+  border-radius: 12px;
+  box-shadow: var(--glass-glow);
+  pointer-events: auto;
+  transition: all 0.3s ease;
+  color: #e2e8f0;
+}
+
+.ops-telemetry-panel.hidden {
+  display: none !important;
+}
+
+.ops-panel-section {
+  margin-bottom: 16px;
+}
+
+.ops-panel-section:last-child {
+  margin-bottom: 0;
+}
+
+.ops-section-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #818cf8;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 4px;
+}
+
+.ops-stat-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+.ops-stat-label {
+  color: #94a3b8;
+}
+
+.ops-stat-val {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.ops-stat-val.active-vehicle { color: var(--neon-green); }
+.ops-stat-val.indoor-dot { color: var(--neon-blue); }
+.ops-stat-val.bq-rows { color: var(--neon-purple); }
+
+/* EEA Fallback Toast Style */
+.fallback-toast {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  animation: slide-up-fade 0.5s ease-out;
+}
+
+@keyframes slide-up-fade {
+  from { bottom: 0px; opacity: 0; }
+  to { bottom: 24px; opacity: 1; }
+}
+
+/* Sidebar Dark Theme Overrides */
+aside#sidebar {
+  background: #090d16 !important;
+  border-left: 1px solid var(--dark-border) !important;
+}
+
+.sidebar-content-wrapper {
+  color: #cbd5e1 !important;
+}
+
+.place-name, .reviews-section h3 {
+  color: #ffffff !important;
+}
+
+.opening-hours-summary, .rating-overview-total, .place-type, .address p, .website a, .phone p {
+  color: #94a3b8 !important;
+}
+
+/* Zoom Custom Overrides for Dark Mode */
+.zoom-control {
+  background-color: var(--dark-bg) !important;
+  border: 1px solid var(--dark-border) !important;
+  border-radius: 8px !important;
+  padding: 4px !important;
+}
+
+.zoom-control-button {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.zoom-control-button:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.auto-orbit-control {
+  background-color: var(--dark-bg) !important;
+  border: 1px solid var(--dark-border) !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+}
+
+#deck-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+

@@ -100,10 +100,11 @@ export async function updateSidebarElements(placeId) {
   // add an event listener to handle the close button click
   addCloseButtonListener();
 
-  // get all place details to be displayed in the sidebar
-  const placeDetails = await getPlaceDetails(placeId);
-
-  updatePlaceHeader(placeDetails);
-  updatePlaceOverview(placeDetails);
-  updatePlaceReviews(placeDetails.reviews);
+  // Configure the Places UI Kit details component with the selected place ID
+  const detailsRequest = document.getElementById("sidebar").querySelector("gmp-place-details-place-request");
+  if (detailsRequest) {
+    detailsRequest.place = placeId;
+  }
+  
+  toggleSidebar("open");
 }

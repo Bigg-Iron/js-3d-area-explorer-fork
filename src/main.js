@@ -21,6 +21,9 @@ import createMarkers from "./utils/create-markers.js";
 // Import our deck.gl geospatial operations layer managers
 import { initializeDeckOverlay, setOpsMode, updateDeckCenter } from "./utils/deck-layers.js";
 
+// Import our Conversational AI Geospatial Assistant
+import { initializeAgenticChat } from "./utils/agentic-chat.js";
+
 // Here we load the configuration.
 // The current implementation loads our local `config.json`.
 //
@@ -74,6 +77,9 @@ export async function main() {
     
     // Wire up dynamic menu mode tabs
     setupOperationsMenu();
+
+    // Initialize our Conversational AI Geospatial Assistant
+    initializeAgenticChat();
 
     // Wire up dynamic Google Places Search Autocomplete
     const searchInput = document.getElementById("place-search-input");

@@ -353,13 +353,13 @@ input[type="range"]::-moz-range-track {
    ========================================================================== */
 
 :root {
-  --dark-bg: rgba(15, 23, 42, 0.85);
+  --dark-bg: rgba(10, 15, 30, 0.45);
   --dark-border: rgba(99, 102, 241, 0.3);
   --neon-blue: #00e5ff;
   --neon-green: #39ff14;
   --neon-red: #ff2a5f;
   --neon-purple: #d500f9;
-  --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --glass-glow: 0 12px 40px 0 rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
   --font-family: 'Space Grotesk', 'Inter', sans-serif !important;
 }
 
@@ -381,9 +381,9 @@ body {
   align-items: center;
   padding: 12px 24px;
   background: var(--dark-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--dark-border);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   box-shadow: var(--glass-glow);
   pointer-events: auto;
@@ -501,9 +501,9 @@ body {
   z-index: 999;
   padding: 20px;
   background: var(--dark-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--dark-border);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   box-shadow: var(--glass-glow);
   pointer-events: auto;
@@ -524,9 +524,9 @@ body {
   z-index: 999;
   padding: 20px;
   background: var(--dark-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--dark-border);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   box-shadow: var(--glass-glow);
   pointer-events: auto;
@@ -734,9 +734,9 @@ aside#sidebar {
   display: flex;
   flex-direction: column;
   background: var(--dark-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--dark-border);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   box-shadow: var(--glass-glow);
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -937,5 +937,226 @@ gmp-place-details-compact::part(title) {
   color: #ffffff !important;
   font-family: 'Space Grotesk', sans-serif !important;
   font-weight: 700 !important;
+}
+
+/* ---- PREMIUM HIGH-FIDELITY ANIMATED SVG ICONS & SEARCH STYLING ---- */
+
+/* Search Box custom SVG integration */
+.ops-search-box {
+  position: relative;
+}
+
+.search-icon-svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.1rem;
+  height: 1.1rem;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#place-search-input {
+  padding-left: 38px !important;
+}
+
+#place-search-input:focus + .search-icon-svg {
+  color: var(--neon-blue);
+  transform: translateY(-50%) scale(1.15);
+  filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.7));
+}
+
+#place-search-input:focus + .search-icon-svg .search-handle {
+  animation: search-wiggle 0.5s ease-in-out;
+}
+
+@keyframes search-wiggle {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(1px, 1px); }
+}
+
+/* Menu Tabs Animated Icon Setup */
+.ops-tab {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.anim-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  vertical-align: middle;
+  display: inline-block;
+  flex-shrink: 0;
+  color: inherit;
+  transition: color 0.3s ease;
+}
+
+/* 1. Compass Explorer Icon Animation */
+.icon-explorer .needle {
+  transform-origin: 12px 12px;
+  animation: compass-oscillate 3s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+.ops-tab:hover .icon-explorer .needle,
+.ops-tab.active .icon-explorer .needle {
+  animation: compass-spin 1.5s linear infinite;
+}
+
+@keyframes compass-oscillate {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(40deg); }
+}
+
+@keyframes compass-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 2. Fleet Delivery Truck Animation */
+.icon-fleet .wheel {
+  transform-origin: 6px 17px;
+  animation: wheel-spin 2s linear infinite paused;
+}
+
+.icon-fleet .wheel-right {
+  transform-origin: 16px 17px;
+}
+
+.ops-tab:hover .icon-fleet .wheel,
+.ops-tab.active .icon-fleet .wheel {
+  animation-play-state: running;
+}
+
+.ops-tab:hover .icon-fleet .truck-group,
+.ops-tab.active .icon-fleet .truck-group {
+  animation: truck-bounce 0.5s ease-in-out infinite;
+}
+
+@keyframes wheel-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes truck-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
+/* 3. Oriient Indoor Radar Animation */
+.icon-indoor .signal-ring {
+  transform-origin: 12px 12px;
+  animation: radar-pulse 2s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+}
+
+@keyframes radar-pulse {
+  0% { r: 2px; opacity: 1; stroke-width: 1.5; }
+  100% { r: 9px; opacity: 0; stroke-width: 0.5; }
+}
+
+/* 4. BigQuery Equalizer Animation */
+.icon-bq .bar {
+  transform-origin: bottom;
+  transform-box: fill-box;
+}
+
+.icon-bq .bar-1 {
+  animation: bar-grow-1 1.6s ease-in-out infinite alternate;
+}
+
+.icon-bq .bar-2 {
+  animation: bar-grow-2 1.6s ease-in-out infinite alternate;
+  animation-delay: 0.3s;
+}
+
+.icon-bq .bar-3 {
+  animation: bar-grow-3 1.6s ease-in-out infinite alternate;
+  animation-delay: 0.6s;
+}
+
+@keyframes bar-grow-1 {
+  0% { transform: scaleY(0.7); }
+  100% { transform: scaleY(1.3); }
+}
+
+@keyframes bar-grow-2 {
+  0% { transform: scaleY(1.2); }
+  100% { transform: scaleY(0.6); }
+}
+
+@keyframes bar-grow-3 {
+  0% { transform: scaleY(0.5); }
+  100% { transform: scaleY(1.4); }
+}
+
+/* 5. AI Orb Header Animation */
+.chat-title {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-ai {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-right: 0;
+}
+
+.icon-ai .orb-outline {
+  transform-origin: 12px 12px;
+  animation: spin-clockwise 8s linear infinite;
+}
+
+.icon-ai .orb-bg {
+  animation: orb-pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes spin-clockwise {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes orb-pulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.05); opacity: 1; }
+}
+
+/* 6. Chat Toggle Typing Animation */
+.chat-toggle-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 4px !important;
+}
+
+.chat-toggle-svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  vertical-align: middle;
+  display: inline-block;
+  color: #a5b4fc;
+  transition: all 0.3s ease;
+}
+
+.chat-toggle-btn:hover .chat-toggle-svg {
+  color: #ffffff;
+  transform: scale(1.1);
+  filter: drop-shadow(0 0 4px rgba(165, 180, 252, 0.6));
+}
+
+.chat-dot {
+  animation: chat-dot-pulse 1.4s infinite both;
+}
+
+.chat-dot-1 { animation-delay: 0s; }
+.chat-dot-2 { animation-delay: 0.2s; }
+.chat-dot-3 { animation-delay: 0.4s; }
+
+@keyframes chat-dot-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.2); }
 }
 

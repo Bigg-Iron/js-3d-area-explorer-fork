@@ -28,13 +28,50 @@
           <span class="system-status-pill">SYS: ACTIVE</span>
         </div>
         <div class="ops-search-box">
-          <input type="text" id="place-search-input" placeholder="🔍 Search globally..." autocomplete="off" />
+          <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle class="search-circle" cx="11" cy="11" r="6" stroke="currentColor" stroke-width="2"/>
+            <path class="search-handle" d="M16 16L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input type="text" id="place-search-input" placeholder="Search globally..." autocomplete="off" />
         </div>
         <div class="ops-mode-selector">
-          <button class="ops-tab active" id="tab-explorer">🧭 Explorer</button>
-          <button class="ops-tab" id="tab-fleet">🚚 Fleet Engine</button>
-          <button class="ops-tab" id="tab-indoor">🏢 Oriient Indoor</button>
-          <button class="ops-tab" id="tab-bq">📊 BigQuery Analytics</button>
+          <button class="ops-tab active" id="tab-explorer">
+            <svg class="anim-icon icon-explorer" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+              <path class="needle" d="M12 5L14 12L12 19L10 12L12 5Z" fill="currentColor"/>
+              <circle cx="12" cy="12" r="1.5" fill="#020617"/>
+            </svg>
+            Explorer
+          </button>
+          <button class="ops-tab" id="tab-fleet">
+            <svg class="anim-icon icon-fleet" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g class="truck-group">
+                <path d="M2 5h12v10H2V5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/>
+                <path d="M14 8h5l3 3v4h-8V8z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/>
+                <circle class="wheel wheel-left" cx="6" cy="17" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                <circle class="wheel wheel-right" cx="16" cy="17" r="2" stroke="currentColor" stroke-width="2" fill="none"/>
+              </g>
+            </svg>
+            Fleet Engine
+          </button>
+          <button class="ops-tab" id="tab-indoor">
+            <svg class="anim-icon icon-indoor" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M8 7h2v2H8V7zm6 0h2v2h-2V7zm-6 5h2v2H8v-2zm6 0h2v2h-2v-2zm-6 5h2v2H8v-2zm6 0h2v2h-2v-2z" fill="currentColor"/>
+              <circle class="signal-dot" cx="12" cy="12" r="1.5" fill="var(--neon-blue)"/>
+              <circle class="signal-ring" cx="12" cy="12" r="4" stroke="var(--neon-blue)" stroke-width="1.5"/>
+            </svg>
+            Oriient Indoor
+          </button>
+          <button class="ops-tab" id="tab-bq">
+            <svg class="anim-icon icon-bq" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <rect class="bar bar-1" x="6" y="11" width="3" height="7" rx="1" fill="currentColor"/>
+              <rect class="bar bar-2" x="11" y="7" width="3" height="11" rx="1" fill="currentColor"/>
+              <rect class="bar bar-3" x="16" y="13" width="3" height="5" rx="1" fill="currentColor"/>
+            </svg>
+            BigQuery Analytics
+          </button>
         </div>
       </div>
 
@@ -83,8 +120,27 @@
       <!-- Floating Conversational AI Panel -->
       <div class="ops-chat-panel glass-panel closed" id="ops-chat-panel">
         <div class="chat-header">
-          <span class="chat-title">🔮 GEOSPATIAL AI ASSISTANT</span>
-          <button class="chat-toggle-btn" id="chat-toggle-btn">💬</button>
+          <span class="chat-title">
+            <svg class="anim-icon icon-ai" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="orbGradient" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#00e5ff" stop-opacity="1"/>
+                  <stop offset="100%" stop-color="#6366f1" stop-opacity="0.2"/>
+                </radialGradient>
+              </defs>
+              <circle class="orb-bg" cx="12" cy="12" r="8" fill="url(#orbGradient)"/>
+              <circle class="orb-outline" cx="12" cy="12" r="9" stroke="var(--neon-blue)" stroke-width="1.5" stroke-dasharray="4 2"/>
+            </svg>
+            GEOSPATIAL AI ASSISTANT
+          </span>
+          <button class="chat-toggle-btn" id="chat-toggle-btn">
+            <svg class="chat-toggle-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <circle class="chat-dot chat-dot-1" cx="8" cy="12" r="1.5" fill="currentColor"/>
+              <circle class="chat-dot chat-dot-2" cx="12" cy="12" r="1.5" fill="currentColor"/>
+              <circle class="chat-dot chat-dot-3" cx="16" cy="12" r="1.5" fill="currentColor"/>
+            </svg>
+          </button>
         </div>
         <div class="chat-history" id="chat-history">
           <div class="message system">

@@ -28,8 +28,14 @@ cp src/env.example.js src/env.js
 # Using a different delimiter to handle potential special characters in API Key safely
 sed -i '' "s|<API_KEY>|${API_KEY}|g" src/env.js 2>/dev/null || sed -i "s|<API_KEY>|${API_KEY}|g" src/env.js
 
+# Install npm dependencies if node_modules is missing
+if [ ! -d node_modules ]; then
+  echo "📦 Installing backend dependencies..."
+  npm install
+fi
+
 echo "✅ Environment variables successfully populated in src/env.js"
 echo "🚀 Starting local development server on http://localhost:8080..."
 
-# Start http-server serving the 'src' directory
-npx http-server src -p 8080 -c-1
+# Start Node.js Express server
+node server.js

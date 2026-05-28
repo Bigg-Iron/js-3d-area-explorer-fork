@@ -9,8 +9,13 @@ RUN npm install -g http-server
 # Set working directory
 WORKDIR /app
 
+# Copy package specifications and install dependencies
+COPY package.json ./
+RUN npm install
+
 # Copy source code and entrypoint
 COPY ./src /app
+COPY ./server.js /app/server.js
 COPY ./entrypoint.sh /app/entrypoint.sh
 
 # Ensure entrypoint is executable
@@ -21,4 +26,4 @@ EXPOSE 8080
 
 # Configure secure runtime key injection
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["http-server", "-p", "8080", "-c-1", "."]
+CMD ["node", "server.js"]

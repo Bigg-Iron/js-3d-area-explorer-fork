@@ -115,6 +115,21 @@ export async function main() {
       // create markers according to the POIs placed on the map
       await createMarkers(pois, coordinates);
     }
+
+    // Collapsible Camera Controls Card Toggle
+    const cameraPanel = document.getElementById("ops-camera-panel");
+    const cameraHeader = document.getElementById("camera-panel-header");
+    const cameraMinBtn = document.getElementById("camera-minimize-btn");
+    if (cameraPanel && cameraHeader) {
+      cameraHeader.addEventListener("click", () => {
+        cameraPanel.classList.toggle("minimized");
+        if (cameraPanel.classList.contains("minimized")) {
+          cameraMinBtn.textContent = "+";
+        } else {
+          cameraMinBtn.textContent = "−";
+        }
+      });
+    }
   } catch (error) {
     console.error(error);
   }

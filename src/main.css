@@ -515,10 +515,10 @@ body {
   display: none !important;
 }
 
-/* Floating Camera Panel (Floating on the Right) */
+/* Floating Camera Panel (Floating in the Bottom Right Corner) */
 .ops-camera-panel {
   position: absolute;
-  top: 90px;
+  bottom: 24px;
   right: 20px;
   width: 280px;
   z-index: 999;
@@ -530,8 +530,29 @@ body {
   border-radius: 12px;
   box-shadow: var(--glass-glow);
   pointer-events: auto;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   color: #e2e8f0;
+}
+
+.ops-camera-panel.minimized {
+  bottom: 24px;
+  right: 20px;
+  width: 200px;
+  padding: 12px 16px;
+}
+
+.ops-camera-panel.minimized .camera-panel-content {
+  display: none;
+}
+
+.ops-camera-panel.minimized .camera-panel-header {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.ops-camera-panel.minimized .camera-minimize-btn {
+  transform: rotate(180deg);
 }
 
 .camera-control-row {

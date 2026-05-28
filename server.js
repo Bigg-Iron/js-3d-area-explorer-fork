@@ -99,6 +99,43 @@ async function computeRoutesReal(origin, destination, travelMode = 'DRIVE') {
   }
 }
 
+// Geocoding API for direct map flights
+async function geocodeAddressReal(address) {
+  const query = address.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '');
+  if (query === 'north pole') {
+    return {
+      lat: 90.0,
+      lng: 0.0,
+      formattedAddress: 'North Pole, Earth'
+    };
+  }
+  if (query === 'south pole') {
+    return {
+      lat: -90.0,
+      lng: 0.0,
+      formattedAddress: 'South Pole, Antarctica'
+    };
+  }
+
+  try {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.status === 'OK' && data.results && data.results.length > 0) {
+      const loc = data.results[0].geometry.location;
+      return {
+        lat: loc.lat,
+        lng: loc.lng,
+        formattedAddress: data.results[0].formatted_address
+      };
+    }
+    return { error: `Geocoding failed with status ${data.status}` };
+  } catch (err) {
+    console.error("Error inside geocodeAddressReal:", err);
+    return { error: err.message };
+  }
+}
+
 // Conversational Endpoint using official Google Gen AI SDK
 app.post('/api/chat', async (req, res) => {
   const { message, history } = req.body;
@@ -170,19 +207,32 @@ app.post('/api/chat', async (req, res) => {
       }
     };
 
+    const flyToLocationDeclaration = {
+      name: 'fly_to_location',
+      description: 'Flies the 3D map camera to a specific city, country, landmark, coordinate, or geographical area (e.g. "Seattle", "North Pole", "Paris").',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          locationQuery: { type: 'STRING', description: 'The location name, address, or geographical coordinates to fly to' }
+        },
+        required: ['locationQuery']
+      }
+    };
+
     const systemInstruction = `You are a helpful, expert geospatial assistant named 'Grounding Lite API'.
-Your goal is to assist users in discovering places, comparing weather conditions, and plotting routes.
+Your goal is to assist users in discovering places, comparing weather conditions, flying the camera to geographical coordinates/areas, and plotting routes.
 You drive a visual 3D Cesium Map. When you call a tool:
 1. 'search_places': We will render numbered pins on the map matching the places returned.
 2. 'compute_routes': We will draw a ground-clamped polyline route snapping to roads.
+3. 'fly_to_location': We geocode the location name or address and fly the 3D camera smoothly to it. Call this whenever the user wants to navigate, fly to, or view a generic geographical location, city, country, landmark, coordinate, or area (e.g., "take me to the North Pole", "fly to Seattle", "show me Paris").
 
-You MUST use 0-based indexing in brackets (e.g., [0], [1], [2]) when referencing places returned from the tool in your responses so the user can easily click them to fly the camera. This index MUST reset to [0] on every new user turn.`;
+You MUST use 0-based indexing in brackets (e.g., [0], [1], [2]) when referencing places returned from the 'search_places' tool in your responses so the user can easily click them to fly the camera. This index MUST reset to [0] on every new user turn.`;
 
     const chatSession = ai.chats.create({
       model: 'gemini-2.5-flash',
       config: {
         systemInstruction,
-        tools: [{ functionDeclarations: [searchPlacesDeclaration, computeRoutesDeclaration, lookupWeatherDeclaration] }]
+        tools: [{ functionDeclarations: [searchPlacesDeclaration, computeRoutesDeclaration, lookupWeatherDeclaration, flyToLocationDeclaration] }]
       },
       history: history || []
     });
@@ -240,6 +290,23 @@ You MUST use 0-based indexing in brackets (e.g., [0], [1], [2]) when referencing
             functionResponse: {
               name,
               response: { weather }
+            }
+          }]
+        });
+      } else if (name === 'fly_to_location') {
+        sendSSE('status', `Geocoding "${args.locationQuery}"...`);
+        const coords = await geocodeAddressReal(args.locationQuery);
+        
+        // If geocoded successfully, tell the frontend to fly the camera
+        if (!coords.error) {
+          sendSSE('action', { type: 'flyTo', coords });
+        }
+        
+        result = await chatSession.sendMessage({
+          message: [{
+            functionResponse: {
+              name,
+              response: { location: coords }
             }
           }]
         });

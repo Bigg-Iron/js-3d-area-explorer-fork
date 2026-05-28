@@ -142,6 +142,7 @@ async function createMarkerSvg(markerData) {
  * @returns {Cesium.Cartesian3} The adjusted coordinate.
  */
 function addHeightOffset(coord, heightOffset) {
+  if (!coord) return Cesium.Cartesian3.ZERO;
   const cartographic = Cesium.Cartographic.fromCartesian(coord);
   return Cesium.Cartesian3.fromRadians(
     cartographic.longitude,
@@ -452,11 +453,17 @@ async function createMarkers(pois, centerCoordinates) {
   // Modify the position to be on top of terrain (e.g. Rooftops, trees, etc.)
   // this has to be done with the whole coordinates array, because clamping single
   // coords to the ground terrain like this will not work.
-  const coordsWithAdjustedHeight =
-    await cesiumViewer.scene.clampToHeightMostDetailed(markerCoordinates);
+  let coordsWithAdjustedHeight = [];
+  try {
+    coordsWithAdjustedHeight = await cesiumViewer.scene.clampToHeightMostDetailed(markerCoordinates);
+  } catch (err) {
+    console.warn("⚠️ clampToHeightMostDetailed failed:", err);
+  }
 
   // iterate the coordinates and get according poi
-  coordsWithAdjustedHeight.forEach(async (coord, index) => {
+  markerCoordinates.forEach(async (origCoord, index) => {
+    // Fall back to original coordinate if clamping failed or returned undefined
+    const coord = (coordsWithAdjustedHeight && coordsWithAdjustedHeight[index]) || origCoord;
     const markerData = index < pois.length ? pois[index] : centerMarker;
     // add vertical offset between marker and terrain to allow for a line to be rendered in between
     const coordWithHeightOffset = addHeightOffset(coord, 28);

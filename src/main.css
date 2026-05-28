@@ -751,7 +751,7 @@ aside#sidebar {
   left: 20px;
   bottom: 24px;
   width: 380px;
-  z-index: 998;
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   background: var(--dark-bg);
@@ -947,6 +947,7 @@ gmp-place-details-compact {
   --gmp-mat-font-family: 'Space Grotesk', sans-serif !important;
   background: transparent !important;
   color: #e2e8f0 !important;
+  min-height: 0 !important;
 }
 
 /* Ensure Places UI Kit list elements match dark futuristic theme */
@@ -958,5 +959,15 @@ gmp-place-details-compact::part(title) {
   color: #ffffff !important;
   font-family: 'Space Grotesk', sans-serif !important;
   font-weight: 700 !important;
+}
+
+/* Interactive Google Street View Panel CSS transitions */
+#street-view-container {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* If the telemetry panel is visible, shift the chat panel side-by-side to prevent overlaps */
+.ops-telemetry-panel:not(.hidden) ~ .ops-chat-panel {
+  left: 360px;
 }
 

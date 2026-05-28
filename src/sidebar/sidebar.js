@@ -107,4 +107,46 @@ export async function updateSidebarElements(placeId) {
   }
   
   toggleSidebar("open");
+
+  // Load Google Street View if coordinates are available
+  try {
+    const { Place } = await google.maps.importLibrary("places");
+    const place = new Place({ id: placeId });
+    await place.fetchFields({ fields: ["location"] });
+    
+    if (place.location) {
+      const lat = typeof place.location.lat === "function" ? place.location.lat() : 
+                  (typeof place.location.lat === "number" ? place.location.lat : place.location.latitude);
+      const lng = typeof place.location.lng === "function" ? place.location.lng() : 
+                  (typeof place.location.lng === "number" ? place.location.lng : place.location.longitude);
+      const latLng = new google.maps.LatLng(lat, lng);
+
+      const streetViewService = new google.maps.StreetViewService();
+      streetViewService.getPanorama({ location: latLng, radius: 50 }, (data, status) => {
+        const container = document.getElementById("street-view-container");
+        if (container) {
+          if (status === google.maps.StreetViewStatus.OK) {
+            container.style.display = "block";
+            const panorama = new google.maps.StreetViewPanorama(container, {
+              pano: data.location.pano,
+              visible: true,
+              addressControl: false,
+              linksControl: true,
+              panControl: false,
+              enableCloseButton: false,
+              zoomControl: false,
+              fullscreenControl: false,
+              motionTracking: false,
+              motionTrackingControl: false
+            });
+            panorama.setPov({ heading: 270, pitch: 0 });
+          } else {
+            container.style.display = "none";
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error("Error setting up Street View:", err);
+  }
 }

@@ -28,7 +28,9 @@
           <span class="system-status-pill">SYS: ACTIVE</span>
         </div>
         <div class="ops-search-box">
-          <input type="text" id="place-search-input" placeholder="🔍 Search globally..." autocomplete="off" />
+          <gmp-place-autocomplete id="place-search-input" style="width: 100%; height: 100%;">
+            <input slot="input" type="text" placeholder="🔍 Search globally..." autocomplete="off" />
+          </gmp-place-autocomplete>
         </div>
         <div class="ops-mode-selector">
           <button class="ops-tab active" id="tab-explorer">🧭 Explorer</button>
@@ -170,6 +172,8 @@
             <gmp-place-details-place-request></gmp-place-details-place-request>
             <gmp-place-all-content></gmp-place-all-content>
           </gmp-place-details-compact>
+          <!-- Interactive Google Street View Telemetry Panel -->
+          <div id="street-view-container" style="width: calc(100% - 24px); height: 220px; border-radius: 8px; margin: 12px; border: 1px solid var(--dark-border); box-shadow: 0 0 10px rgba(0, 229, 255, 0.15); display: none; flex-shrink: 0; pointer-events: auto; overflow: hidden; background: rgba(0, 0, 0, 0.4);"></div>
         </div>
       </aside>
     </main>

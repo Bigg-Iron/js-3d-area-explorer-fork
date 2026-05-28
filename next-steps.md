@@ -14,10 +14,10 @@
 [] React framework: (https://mapsplatform.google.com/resources/blog/streamline-the-use-of-the-maps-javascript-api-within-your-react-applications/?_gl=1*hofh1h*_ga*MTczNDc2NTI4My4xNzc4NzQ5MjE1*_ga_NRWSTWS78N*czE3Nzk3NjY0MTkkbzIkZzEkdDE3Nzk3NjkxNzUkajU5JGwwJGgw)
 [x] Better performance + WebGL optimization
 [x] Mobile responsive
-[] ThreeJS WebGL Overlay Wrapper
 [] Enhance Oriient indoor mapping feaature
 [x] Street View API and SDK
     - Connect spherical cameras and apps
     - create and render photo spheres
 [] Places UI Kit
 [] Deck.GL Enhancements
+[] Performance Enhancement: Use highly aggressive, multi-resolution data structures -- As you zoom or pan, it fetches only the exact, highly compressed vector data or compressed 3D mesh fragments needed for your precise viewport and level of detail.

@@ -1,7 +1,5 @@
 # Add this under the dotenv files section
 src/env.js
-
-
 # Logs
 logs
 *.log

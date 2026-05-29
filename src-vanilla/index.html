@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" type="text/css" href="./main.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js"></script>
+    <link
+      href="https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css"
+      rel="stylesheet"
+    />
+    <!-- Google Fonts for Space-Age Dark Tech UI -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- deck.gl for premium high-performance geospatial overlays -->
+    <script src="https://unpkg.com/deck.gl@~9.0.0/dist.min.js"></script>
+    <script src="https://unpkg.com/@loaders.gl/3d-tiles@^4.0.0/dist/dist.min.js"></script>
+    <title>3D Spatial Operations Dashboard</title>
+  </head>
+  <body>
+    <main class="main-container">
+      <!-- Floating Spatial Operations Control Center -->
+      <div class="ops-header-overlay">
+        <div class="ops-title-group">
+          <span class="pulse-icon-red"></span>
+          <h1>SPATIAL OPERATIONS CENTER</h1>
+          <span class="system-status-pill">SYS: ACTIVE</span>
+        </div>
+        <div class="ops-search-box">
+          <gmp-place-autocomplete id="place-search-input" style="width: 100%; height: 100%;">
+            <input slot="input" type="text" placeholder="🔍 Search globally..." autocomplete="off" />
+          </gmp-place-autocomplete>
+        </div>
+        <div class="ops-mode-selector">
+          <button class="ops-tab active" id="tab-explorer">🧭 Explorer</button>
+          <button class="ops-tab" id="tab-fleet">🚚 Fleet Engine</button>
+          <button class="ops-tab" id="tab-indoor">🏢 Oriient Indoor</button>
+          <button class="ops-tab" id="tab-bq">📊 BigQuery Analytics</button>
+        </div>
+      </div>
+
+      <!-- Overlaid Floating Telemetry Panel -->
+      <div class="ops-telemetry-panel glass-panel hidden" id="ops-telemetry-panel">
+        <!-- Dynamic telemetry cards go here -->
+      </div>
+
+      <!-- Floating Glassmorphic Camera Controls Card -->
+      <div class="ops-camera-panel glass-panel" id="ops-camera-panel">
+        <div class="camera-panel-header" id="camera-panel-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 8px; margin-bottom: 12px;">
+          <div class="ops-section-title" style="margin-bottom: 0;">🎥 CAMERA CONTROLS</div>
+          <button class="camera-minimize-btn" id="camera-minimize-btn" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 0 4px;">−</button>
+        </div>
+        
+        <div class="camera-panel-content" id="camera-panel-content">
+          <div class="camera-control-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <span class="camera-label" style="margin-bottom: 0; display: inline-block;">🌌 Auto Orbit Mode</span>
+            <label class="switch" for="toggle-switch-panel" style="margin: 0;">
+              <div class="input-wrapper">
+                <input type="checkbox" id="toggle-switch-panel" checked />
+                <span class="slider"></span>
+              </div>
+            </label>
+          </div>
+          <div class="camera-control-row">
+            <label for="orbit-speed-slider" class="camera-label">🔄 Orbit Speed: <span id="orbit-speed-val">1.0</span> RPM</label>
+            <input type="range" id="orbit-speed-slider" min="0.1" max="4.0" step="0.1" value="1.0" class="camera-slider" />
+          </div>
+
+          <div class="camera-control-row">
+            <label for="orbit-radius-slider" class="camera-label">📏 Orbit Radius: <span id="orbit-radius-val">800</span> m</label>
+            <input type="range" id="orbit-radius-slider" min="200" max="2500" step="50" value="800" class="camera-slider" />
+          </div>
+
+          <div class="camera-control-row">
+            <label for="orbit-pitch-slider" class="camera-label">📐 Pitch (Tilt): <span id="orbit-pitch-val">-30</span>°</label>
+            <input type="range" id="orbit-pitch-slider" min="-75" max="-15" step="1" value="-30" class="camera-slider" />
+          </div>
+
+          <div class="camera-control-row">
+            <label for="orbit-style-select" class="camera-label">🌊 Orbit Style</label>
+            <select id="orbit-style-select" class="camera-select">
+              <option value="fixed-orbit">Fixed (Circular)</option>
+              <option value="dynamic-orbit" selected>Dynamic (Sine wave)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating Conversational AI Panel -->
+      <div class="ops-chat-panel glass-panel closed" id="ops-chat-panel">
+        <div class="chat-header">
+          <span class="chat-title">🔮 GEOSPATIAL AI ASSISTANT</span>
+          <button class="chat-toggle-btn" id="chat-toggle-btn">💬</button>
+        </div>
+        <div class="chat-history" id="chat-history">
+          <div class="message system">
+            Hello! I am your Geospatial Operations Assistant. Try asking me:
+            <br/>• <i>"Find nice cafes in Las Vegas"</i>
+            <br/>• <i>"Plan a walking route from Bellagio to Caesars Palace"</i>
+            <br/>• <i>"What's the weather in Seattle?"</i>
+          </div>
+        </div>
+        <div class="chat-status-bar" id="chat-status-bar">Ready</div>
+        <div class="chat-input-area">
+          <input type="text" id="chat-input" placeholder="Ask anything spatial..." autocomplete="off" />
+          <button id="chat-send-btn">Send</button>
+        </div>
+      </div>
+
+      <!-- This section contains a cesium container for displaying 3D map tiles  -->
+      <!-- JavaScript is used to manipulate the HTML elements, add event listeners,
+        and perform other actions to make the cesium globe interactive and dynamic. -->
+      <div id="cesium-container">
+        <canvas id="deck-canvas"></canvas>
+        <div class="custom-overlay overlay-is-hidden">
+          <div class="zoom-control">
+            <button
+              class="zoom-control-button zoom-in-button"
+              aria-label="Zoom in"
+            >
+              <img src="assets/icons/zoom-control-plus-icon.svg" alt="" />
+            </button>
+            <button
+              class="zoom-control-button zoom-reset-button"
+              aria-label="Reset zoom"
+            >
+              <img src="assets/icons/zoom-control-reset-icon.svg" alt="" />
+            </button>
+            <button
+              class="zoom-control-button zoom-out-button"
+              aria-label="Zoom out"
+            >
+              <img src="assets/icons/zoom-control-minus-icon.svg" alt="" />
+            </button>
+          </div>
+          <div class="auto-orbit-control">
+            <label class="switch" for="toggle-switch"
+              ><div class="input-wrapper">
+                <input type="checkbox" id="toggle-switch" /><span
+                  class="slider"
+                ></span></div
+            ></label>
+            <p>Auto Orbit</p>
+          </div>
+        </div>
+        <div class="cesium-attribution-container">
+          rendered with
+          <a
+            class="cesium-logo__link"
+            href="https://cesium.com/"
+            target="_blank"
+            ><img
+              class="cesium-logo__image"
+              src="assets/cesium-js.png"
+              alt="CesiumJS Logo"
+          /></a>
+        </div>
+      </div>
+
+      <!-- The sidebar is used to show information regarding the place details.
+      To toggle it, the sidebar-is-open class is added and removed on the main-container -->
+      <aside id="sidebar">
+        <div class="sidebar-content-wrapper" style="height: 100%; display: flex; flex-direction: column;">
+          <div class="place-image-container" style="position: relative; flex-shrink: 0;">
+            <button class="sidebar-close-button" aria-label="Close Sidebar" style="position: absolute; top: 12px; right: 12px; z-index: 10;">
+              <img src="assets/icons/sidebar/close-icon.svg" alt="Close" />
+            </button>
+          </div>
+          <!-- Places UI Kit Compact Details component -->
+          <gmp-place-details-compact orientation="vertical" id="places-ui-kit-details" style="width: 100%; flex-grow: 1; overflow-y: auto; padding: 12px; color-scheme: dark;">
+            <gmp-place-details-place-request></gmp-place-details-place-request>
+            <gmp-place-all-content></gmp-place-all-content>
+          </gmp-place-details-compact>
+          <!-- Interactive Google Street View Telemetry Panel Wrapper -->
+          <div id="street-view-wrapper" style="position: relative; width: calc(100% - 24px); margin: 12px; display: none; flex-shrink: 0; pointer-events: auto;">
+            <div id="street-view-backdrop"></div>
+            <div id="street-view-container" style="width: 100%; height: 220px; border-radius: 8px; border: 1px solid var(--dark-border); box-shadow: 0 0 10px rgba(0, 229, 255, 0.15); pointer-events: auto; overflow: hidden; background: rgba(0, 0, 0, 0.4);"></div>
+            <div id="street-view-overlay">
+              <span class="street-view-overlay-btn">
+                <span>⛶</span> Click to Explore
+              </span>
+            </div>
+            <button id="street-view-expand-btn" title="Expand Street View" style="position: absolute; top: 8px; right: 8px; z-index: 10; background: rgba(11, 15, 25, 0.85); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; backdrop-filter: blur(4px); box-shadow: 0 0 8px rgba(0,229,255,0.25); transition: all 0.3s ease;">⛶</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+    <!-- Central script to load all javascript files
+    to initialize google maps, cesium viewer and dynamically create UI Elements -->
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

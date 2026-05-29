@@ -480,7 +480,13 @@ app.get('/api/bq-seismic', async (req, res) => {
   }
 });
 
-// Serve static assets from our dashboard root folder
+// Expose configuration variables like Google Maps API Key safely to the client
+app.get('/api/config', (req, res) => {
+  res.json({ apiKey: process.env.GOOGLE_MAPS_API_KEY });
+});
+
+// Serve static assets from our compiled dist folder (production React app) and fallback to root
+app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.static(path.join(__dirname)));
 
 const PORT = process.env.PORT || 8080;

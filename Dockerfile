@@ -1,22 +1,20 @@
 # Copyright 2026 Google LLC
 # Production-ready secure container configuration
 
-FROM node:21-alpine
-
-# Install static file server
-RUN npm install -g http-server
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Copy package specifications and install dependencies
-COPY package.json ./
+COPY package.json package-lock.json ./
 RUN npm install
 
-# Copy source code and entrypoint
-COPY ./src /app
-COPY ./server.js /app/server.js
-COPY ./entrypoint.sh /app/entrypoint.sh
+# Copy source code and all configuration files
+COPY . /app
+
+# Build the React production client bundle
+RUN npm run build
 
 # Ensure entrypoint is executable
 RUN chmod +x /app/entrypoint.sh

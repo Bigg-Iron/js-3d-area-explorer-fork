@@ -20,4 +20,3 @@
     2. When the operational center coordinates change, the simulator dynamically requests three real, snapping driving paths around the city center.
     3. Added a callback parameter that automatically redraws the static routes and snaps the dynamic vehicles to the actual local street segments and grade once resolved.
     4. Confirmed that snapping to the street layout eliminates the parallax floating effect, grounding vehicles on real-world road networks perfectly.
-

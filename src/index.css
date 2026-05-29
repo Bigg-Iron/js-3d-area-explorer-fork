@@ -237,3 +237,15 @@ gmp-place-details-compact::part(title) {
   font-family: 'Space Grotesk', sans-serif !important;
   font-weight: 700 !important;
 }
+
+/* Modal Enlarge Zoom & Fade animations */
+@keyframes modal-zoom-fade {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

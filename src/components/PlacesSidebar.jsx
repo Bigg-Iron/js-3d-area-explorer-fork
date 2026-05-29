@@ -2,6 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { setSelectedMarker } from './MapViewer';
+import { StreetViewPanel } from './StreetViewPanel';
 
 export const PlacesSidebar = () => {
   const requestRef = useRef(null);
@@ -72,6 +73,9 @@ export const PlacesSidebar = () => {
           <gmp-place-details-place-request ref={requestRef}></gmp-place-details-place-request>
           <gmp-place-all-content></gmp-place-all-content>
         </gmp-place-details-compact>
+
+        {/* Dynamic Street View Telemetry Panel */}
+        <StreetViewPanel placeId={selectedPlaceId} />
       </div>
     </aside>
   );

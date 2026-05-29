@@ -9,6 +9,28 @@ let chatHistory = [];
 let activeSearchPlaces = [];
 let activeRouteEntity = null;
 
+// Robust Coordinate Resolver for legacy Autocomplete and modern Places API (New) objects
+function getPlaceCoords(p) {
+  if (!p) return null;
+  // If p has geometry.location (legacy/standard places)
+  if (p.geometry && p.geometry.location) {
+    const loc = p.geometry.location;
+    return {
+      lat: typeof loc.lat === 'function' ? loc.lat() : loc.lat,
+      lng: typeof loc.lng === 'function' ? loc.lng() : loc.lng
+    };
+  }
+  // If p has location (modern places searchPlacesReal)
+  if (p.location) {
+    return {
+      lat: p.location.latitude !== undefined ? p.location.latitude : p.location.lat,
+      lng: p.location.longitude !== undefined ? p.location.longitude : p.location.lng
+    };
+  }
+  return null;
+}
+
+
 // Polyline Decoder for Directions Overview Path
 function decodePolyline(encoded) {
   let len = encoded.length;
@@ -75,8 +97,14 @@ export function initializeAgenticChat() {
   if (!panel || !header) return;
 
   // Toggle chat panel open/closed states
+  const toggleBtn = document.getElementById("chat-toggle-btn");
   header.addEventListener("click", () => {
     panel.classList.toggle("closed");
+    if (panel.classList.contains("closed")) {
+      toggleBtn.textContent = "💬";
+    } else {
+      toggleBtn.textContent = "−";
+    }
   });
 
   const appendMessage = (sender, text) => {
@@ -172,8 +200,8 @@ export function initializeAgenticChat() {
       activeSearchPlaces = action.places;
       
       const firstPlace = action.places[0];
-      const loc = firstPlace.geometry.location;
-      const center = { lat: loc.latitude, lng: loc.longitude };
+      const coords = getPlaceCoords(firstPlace);
+      const center = { lat: coords.lat, lng: coords.lng };
 
       // Map place list format back to legacy expected by createMarkers
       const mappedPois = action.places.map(p => {
@@ -181,11 +209,12 @@ export function initializeAgenticChat() {
         if (p.types && p.types[0]) {
           iconBaseUri = `assets/icons/poi/${p.types[0]}`;
         }
+        const pCoords = getPlaceCoords(p);
         return {
           place_id: p.id,
           name: p.displayName?.text || p.displayName || "",
           geometry: {
-            location: new google.maps.LatLng({ lat: p.location.latitude, lng: p.location.longitude })
+            location: new google.maps.LatLng(pCoords.lat, pCoords.lng)
           },
           icon_background_color: p.iconBackgroundColor || "#4f46e5",
           icon_mask_base_uri: iconBaseUri,
@@ -198,9 +227,14 @@ export function initializeAgenticChat() {
       await performFlyTo(center);
 
       // Render ground-clamped 3D markers
-      await createMarkers(mappedPois, new google.maps.LatLng(center));
+      await createMarkers(mappedPois, new google.maps.LatLng(center.lat, center.lng));
       statusBar.textContent = "Map markers updated.";
     } 
+    else if (action.type === "flyTo" && action.coords) {
+      const center = { lat: action.coords.lat, lng: action.coords.lng };
+      statusBar.textContent = `Flying to ${action.coords.formattedAddress || "location"}...`;
+      await performFlyTo(center);
+    }
     else if (action.type === "drawRoute" && action.route) {
       const { polyline, startLocation } = action.route;
       
@@ -249,14 +283,16 @@ export function initializeAgenticChat() {
     const place = activeSearchPlaces[index];
 
     if (place) {
-      const loc = place.location;
-      const center = { lat: loc.latitude, lng: loc.longitude };
-      
-      statusBar.textContent = `Flying to [${index}] ${place.displayName?.text || "place"}...`;
-      await performFlyTo(center);
+      const coords = getPlaceCoords(place);
+      if (coords) {
+        statusBar.textContent = `Flying to [${index}] ${place.displayName?.text || place.name || "place"}...`;
+        await performFlyTo(coords);
 
-      // Open UI Kit compact details panel in sidebar
-      await updateSidebarElements(place.id);
+        // Open UI Kit compact details panel in sidebar
+        await updateSidebarElements(place.id || place.place_id);
+      } else {
+        console.warn("Could not resolve coordinates for place:", place);
+      }
     }
   });
 }

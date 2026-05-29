@@ -107,4 +107,106 @@ export async function updateSidebarElements(placeId) {
   }
   
   toggleSidebar("open");
+
+  // Load Google Street View if coordinates are available
+  try {
+    const { Place } = await google.maps.importLibrary("places");
+    const place = new Place({ id: placeId });
+    await place.fetchFields({ fields: ["location"] });
+    
+    if (place.location) {
+      const lat = typeof place.location.lat === "function" ? place.location.lat() : 
+                  (typeof place.location.lat === "number" ? place.location.lat : place.location.latitude);
+      const lng = typeof place.location.lng === "function" ? place.location.lng() : 
+                  (typeof place.location.lng === "number" ? place.location.lng : place.location.longitude);
+      const latLng = new google.maps.LatLng(lat, lng);
+
+      const streetViewService = new google.maps.StreetViewService();
+      streetViewService.getPanorama({ location: latLng, radius: 50 }, (data, status) => {
+        const wrapper = document.getElementById("street-view-wrapper");
+        const container = document.getElementById("street-view-container");
+        if (wrapper && container) {
+          if (status === google.maps.StreetViewStatus.OK) {
+            wrapper.style.display = "block";
+            const panorama = new google.maps.StreetViewPanorama(container, {
+              pano: data.location.pano,
+              visible: true,
+              addressControl: false,
+              linksControl: true,
+              panControl: false,
+              enableCloseButton: false,
+              zoomControl: false,
+              fullscreenControl: false,
+              motionTracking: false,
+              motionTrackingControl: false
+            });
+            panorama.setPov({ heading: 270, pitch: 0 });
+
+            // Store active panorama on global scope for resizing
+            window.activePanorama = panorama;
+
+            // Unified Enlarge/Minimize state toggle function
+            const expandBtn = document.getElementById("street-view-expand-btn");
+            if (!expandBtn) return;
+
+            const newExpandBtn = expandBtn.cloneNode(true);
+            expandBtn.parentNode.replaceChild(newExpandBtn, expandBtn);
+
+            const toggleEnlarge = (forceState) => {
+              const shouldEnlarge = forceState !== undefined ? forceState : !wrapper.classList.contains("enlarged");
+              
+              if (shouldEnlarge) {
+                wrapper.classList.add("enlarged");
+                newExpandBtn.innerHTML = "✕";
+                newExpandBtn.title = "Minimize Street View";
+                newExpandBtn.style.color = "var(--neon-red)";
+                newExpandBtn.style.borderColor = "rgba(255, 42, 95, 0.4)";
+                newExpandBtn.style.boxShadow = "0 0 12px rgba(255, 42, 95, 0.4)";
+              } else {
+                wrapper.classList.remove("enlarged");
+                newExpandBtn.innerHTML = "⛶";
+                newExpandBtn.title = "Expand Street View";
+                newExpandBtn.style.color = "#00e5ff";
+                newExpandBtn.style.borderColor = "rgba(0, 229, 255, 0.3)";
+                newExpandBtn.style.boxShadow = "0 0 8px rgba(0, 229, 255, 0.25)";
+              }
+
+              // Force Google Maps API layout recalculation after transition
+              setTimeout(() => {
+                google.maps.event.trigger(panorama, 'resize');
+              }, 250);
+            };
+
+            // Wire up Expand button
+            newExpandBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              toggleEnlarge();
+            });
+
+            // Wire up compact Overlay click to expand
+            const overlay = document.getElementById("street-view-overlay");
+            if (overlay) {
+              overlay.addEventListener("click", (e) => {
+                e.stopPropagation();
+                toggleEnlarge(true);
+              });
+            }
+
+            // Wire up Backdrop click to close / minimize
+            const backdrop = document.getElementById("street-view-backdrop");
+            if (backdrop) {
+              backdrop.addEventListener("click", (e) => {
+                e.stopPropagation();
+                toggleEnlarge(false);
+              });
+            }
+          } else {
+            wrapper.style.display = "none";
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error("Error setting up Street View:", err);
+  }
 }

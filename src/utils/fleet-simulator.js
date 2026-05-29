@@ -26,7 +26,8 @@ const CHELSEA_ROUTES = {
 };
 
 class FleetSimulator {
-  setCenter(newCenter) {
+  setCenter(newCenter, onRoutesUpdated) {
+    // 1. Immediate local fallback translation (linear offsets)
     const oldCenter = { lat: 40.74244, lng: -74.006144 };
     const deltaLat = newCenter.lat - oldCenter.lat;
     const deltaLng = newCenter.lng - oldCenter.lng;
@@ -49,6 +50,63 @@ class FleetSimulator {
       vehicle.currentIndex = 0;
       vehicle.progress = 0;
     });
+
+    // 2. Asynchronous Directions Service lookup to snap to actual local streets
+    try {
+      if (typeof google !== "undefined" && google.maps && google.maps.DirectionsService) {
+        const directionsService = new google.maps.DirectionsService();
+        
+        // Form three distinct routes in the searched city centered around new center coords
+        const tasks = [
+          {
+            origin: new google.maps.LatLng(newCenter.lat - 0.003, newCenter.lng - 0.003),
+            destination: new google.maps.LatLng(newCenter.lat + 0.003, newCenter.lng + 0.003)
+          },
+          {
+            origin: new google.maps.LatLng(newCenter.lat + 0.003, newCenter.lng - 0.002),
+            destination: new google.maps.LatLng(newCenter.lat - 0.002, newCenter.lng + 0.003)
+          },
+          {
+            origin: new google.maps.LatLng(newCenter.lat - 0.002, newCenter.lng + 0.003),
+            destination: new google.maps.LatLng(newCenter.lat + 0.003, newCenter.lng - 0.002)
+          }
+        ];
+
+        let completedQueries = 0;
+        tasks.forEach((task, index) => {
+          directionsService.route({
+            origin: task.origin,
+            destination: task.destination,
+            travelMode: google.maps.TravelMode.DRIVING
+          }, (result, status) => {
+            completedQueries++;
+            if (status === google.maps.DirectionsStatus.OK && result.routes && result.routes.length > 0) {
+              const path = result.routes[0].overview_path;
+              if (path && path.length > 0) {
+                const realRoute = path.map(latLng => ({
+                  lat: latLng.lat(),
+                  lng: latLng.lng()
+                }));
+                // Update vehicle with the real road-snapped coordinates
+                this.vehicles[index].route = realRoute;
+                this.vehicles[index].position = { ...realRoute[0] };
+                this.vehicles[index].currentIndex = 0;
+                this.vehicles[index].progress = 0;
+              }
+            } else {
+              console.warn(`⚠️ Snapping vehicle_${index} to roads failed: status ${status}`);
+            }
+
+            // Once all routes finish, trigger the callback to redraw polylines on map
+            if (completedQueries === tasks.length && typeof onRoutesUpdated === "function") {
+              onRoutesUpdated();
+            }
+          });
+        });
+      }
+    } catch (err) {
+      console.warn("⚠️ Google Maps Directions Service is not initialized for Fleet Engine snapping:", err);
+    }
   }
 
   constructor() {

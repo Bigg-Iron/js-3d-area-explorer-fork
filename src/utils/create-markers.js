@@ -142,12 +142,18 @@ async function createMarkerSvg(markerData) {
  * @returns {Cesium.Cartesian3} The adjusted coordinate.
  */
 function addHeightOffset(coord, heightOffset) {
-  const cartographic = Cesium.Cartographic.fromCartesian(coord);
-  return Cesium.Cartesian3.fromRadians(
-    cartographic.longitude,
-    cartographic.latitude,
-    cartographic.height + heightOffset
-  );
+  if (!coord) return Cesium.Cartesian3.ZERO;
+  try {
+    const cartographic = Cesium.Cartographic.fromCartesian(coord);
+    return Cesium.Cartesian3.fromRadians(
+      cartographic.longitude,
+      cartographic.latitude,
+      cartographic.height + heightOffset
+    );
+  } catch (err) {
+    console.warn("⚠️ addHeightOffset failed:", err);
+    return coord; // fallback to original coord without height offset
+  }
 }
 /**
  * Helper function to truncate the name of a location.
@@ -445,21 +451,43 @@ async function createMarkers(pois, centerCoordinates) {
   const centerMarker = createCenterMarkerData(centerCoordinates);
 
   const markerCoordinates = [...pois, centerMarker].map((poi) => {
-    const { lng, lat } = poi.geometry.location.toJSON();
+    const loc = poi.geometry.location;
+    const lat = typeof loc.lat === "function" ? loc.lat() : 
+                (typeof loc.lat === "number" ? loc.lat : loc.latitude);
+    const lng = typeof loc.lng === "function" ? loc.lng() : 
+                (typeof loc.lng === "number" ? loc.lng : loc.longitude);
     return Cesium.Cartesian3.fromDegrees(lng, lat);
-  });
+  }).filter(coord => coord !== undefined);
 
   // Modify the position to be on top of terrain (e.g. Rooftops, trees, etc.)
   // this has to be done with the whole coordinates array, because clamping single
   // coords to the ground terrain like this will not work.
-  const coordsWithAdjustedHeight =
-    await cesiumViewer.scene.clampToHeightMostDetailed(markerCoordinates);
+  let coordsWithAdjustedHeight = [];
+  try {
+    coordsWithAdjustedHeight = await cesiumViewer.scene.clampToHeightMostDetailed(markerCoordinates);
+  } catch (err) {
+    console.warn("⚠️ clampToHeightMostDetailed failed:", err);
+  }
 
   // iterate the coordinates and get according poi
-  coordsWithAdjustedHeight.forEach(async (coord, index) => {
+  markerCoordinates.forEach(async (origCoord, index) => {
+    // Fall back to original coordinate if clamping failed or returned undefined
+    const coord = (coordsWithAdjustedHeight && coordsWithAdjustedHeight[index]) || origCoord;
+    
+    if (!coord) {
+      console.warn("⚠️ Skipping invalid coordinate at index", index);
+      return;
+    }
+
     const markerData = index < pois.length ? pois[index] : centerMarker;
     // add vertical offset between marker and terrain to allow for a line to be rendered in between
     const coordWithHeightOffset = addHeightOffset(coord, 28);
+    
+    if (!coordWithHeightOffset) {
+      console.warn("⚠️ Skipping marker due to height offset failure at index", index);
+      return;
+    }
+
     const id = index < pois.length ? pois[index].place_id : CENTER_MARKER_ID;
     const { name } = markerData;
     const markerSvg = await createMarkerSvg(markerData);

@@ -120,73 +120,99 @@ export function drawStaticEntities() {
     });
   }
 
-  // 4. BIGQUERY SPATIAL ANALYTICS (Highly Optimized 3D Cylinder Heatmaps)
+  // 4. BIGQUERY SPATIAL ANALYTICS (USGS Seismic Activity 3D Columns)
   if (currentMode === "bq-analytics") {
-    const seedLat = centerCoords.lat;
-    const seedLng = centerCoords.lng;
+    fetch('/api/bq-seismic')
+      .then(res => res.json())
+      .then(data => {
+        // Guard against rapid tab switching
+        if (currentMode !== "bq-analytics") return;
 
-    // Cache clusters statically to prevent infinite random redraws
-    if (!window.bqClustersCache) {
-      window.bqClustersCache = [];
-      for (let i = 0; i < 70; i++) {
-        const r = 0.0055 * Math.sqrt(-2 * Math.log(Math.random() || 0.001));
-        const theta = 2 * Math.PI * Math.random();
-        const lat = seedLat + r * Math.sin(theta);
-        const lng = seedLng + r * Math.cos(theta);
-        const count = Math.floor(Math.random() * 450) + 50;
-        window.bqClustersCache.push({ lat, lng, count });
-      }
-    }
-
-    const bqCoords = window.bqClustersCache.map(cluster => {
-      const latOffset = cluster.lat - seedLat;
-      const lngOffset = cluster.lng - seedLng;
-      return Cesium.Cartesian3.fromDegrees(seedLng + lngOffset, seedLat + latOffset);
-    });
-
-    // Clamp coordinates once to rooftops & streets in a single highly optimized call
-    viewerRef.scene.clampToHeightMostDetailed(bqCoords).then(clampedCoords => {
-      // Guard against rapid mode switching
-      if (currentMode !== "bq-analytics") return;
-
-      clampedCoords.forEach((clampedCoord, i) => {
-        const cluster = window.bqClustersCache[i];
+        const earthquakes = data.earthquakes || [];
         
-        let colorStr = "#f3e8ff";
-        if (cluster.count > 400) colorStr = "#6b21a8";
-        else if (cluster.count > 300) colorStr = "#9333ea";
-        else if (cluster.count > 200) colorStr = "#a855f7";
-        else if (cluster.count > 100) colorStr = "#c084fc";
+        // Update telemetry panel values with real BigQuery metrics
+        const bqDatasetLabel = document.querySelector(".bq-dataset-label");
+        const bqRowsLabel = document.querySelector(".bq-rows-label");
+        const bqLatencyLabel = document.querySelector(".bq-latency-label");
+        const bqSourceLabel = document.querySelector(".bq-source-label");
         
-        const color = Cesium.Color.fromCssColorString(colorStr);
-        const length = cluster.count * 1.5;
+        if (bqDatasetLabel) bqDatasetLabel.textContent = data.dataset || "usgs_seismic.earthquakes";
+        if (bqRowsLabel) bqRowsLabel.textContent = `${data.recordsAnalyzed || earthquakes.length} rows`;
+        if (bqLatencyLabel) bqLatencyLabel.textContent = data.queryLatency || "0.24s";
+        if (bqSourceLabel) bqSourceLabel.textContent = data.source || "BigQuery Analytics Table";
 
-        // Position cylinder center at: Rooftop elevation + (Length / 2)
-        // This ensures the BASE sits perfectly flat on Google 3D Tiles rooftops and streets!
-        const cartographic = Cesium.Cartographic.fromCartesian(clampedCoord);
-        const centerPosition = Cesium.Cartesian3.fromRadians(
-          cartographic.longitude,
-          cartographic.latitude,
-          cartographic.height + (length / 2)
-        );
+        earthquakes.forEach((eq) => {
+          const mag = eq.magnitude;
+          // Height represents magnitude: scale for global visualization.
+          const length = mag * 18000; 
 
-        viewerRef.entities.add({
-          id: `bq-column-${i}`,
-          position: centerPosition,
-          cylinder: {
-            length: length,
-            topRadius: 18.0,
-            bottomRadius: 18.0,
-            material: color.withAlpha(0.75),
-            outline: true,
-            outlineColor: color
+          // Color code based on severity
+          let colorStr = "#facc15"; // moderate: yellow
+          if (mag >= 6.0) {
+            colorStr = "#ff2a5f"; // severe: neon red
+          } else if (mag >= 4.5) {
+            colorStr = "#fb923c"; // strong: orange
           }
+          const color = Cesium.Color.fromCssColorString(colorStr);
+
+          // Render directly at degrees to avoid slow and hanging global clampToHeight calls
+          const centerPosition = Cesium.Cartesian3.fromDegrees(eq.longitude, eq.latitude, length / 2);
+
+          // Add Cylinder Entity with rich metadata description window
+          const desc = `
+            <div style="font-family: 'Space Grotesk', sans-serif; padding: 12px; background: rgba(11, 15, 25, 0.95); border: 1px solid rgba(0,229,255,0.25); border-radius: 8px; color: #fff;">
+              <h4 style="margin: 0 0 8px 0; color: #00e5ff; font-weight:700; letter-spacing:0.5px;">🌋 SEISMIC TELEMETRY ACCUMULATION</h4>
+              <div style="font-size:0.78rem; margin-bottom:6px;"><strong>Place:</strong> ${eq.place}</div>
+              <div style="font-size:0.78rem; margin-bottom:6px;"><strong>Magnitude:</strong> <span style="color: ${colorStr}; font-weight:700;">${mag} M</span></div>
+              <div style="font-size:0.78rem; margin-bottom:6px;"><strong>Depth:</strong> ${eq.depth} km</div>
+              <div style="font-size:0.78rem; margin-bottom:6px;"><strong>Time (UTC):</strong> ${new Date(eq.time).toUTCString()}</div>
+              <div style="font-size:0.7rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.1); margin-top:10px; padding-top:6px; text-align:right;">Source: ${data.source}</div>
+            </div>
+          `;
+
+          const entityId = `bq-column-${eq.id}`;
+          
+          // Clear any duplicate entity first to resolve async race condition crashes
+          const existing = viewerRef.entities.getById(entityId);
+          if (existing) {
+            viewerRef.entities.remove(existing);
+          }
+
+          viewerRef.entities.add({
+            id: entityId,
+            position: centerPosition,
+            description: desc,
+            cylinder: {
+              length: length,
+              topRadius: 16000.0, // visible globally
+              bottomRadius: 16000.0,
+              material: color.withAlpha(0.75),
+              outline: true,
+              outlineColor: color,
+              heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND
+            }
+          });
         });
+        
+        console.log(`✅ Loaded ${earthquakes.length} real USGS seismic analytics onto Cesium globe.`);
+        
+        // Smoothly fly camera to show the biggest earthquake in the recent list (8000km global view)
+        if (earthquakes.length > 0 && viewerRef) {
+          const biggest = earthquakes[0]; // ordered by magnitude DESC
+          viewerRef.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(biggest.longitude, biggest.latitude - 12.0, 8000000), 
+            orientation: {
+              heading: Cesium.Math.toRadians(0),
+              pitch: Cesium.Math.toRadians(-42),
+              roll: 0
+            },
+            duration: 2.5
+          });
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load BigQuery seismic data:", err);
       });
-      console.log("✅ BigQuery 3D columns clamped perfectly onto building rooftops and streets.");
-    }).catch(err => {
-      console.error("Error clamping BigQuery columns to heights:", err);
-    });
   }
 }
 
@@ -359,41 +385,35 @@ export function setOpsMode(mode, cesiumViewer) {
       <div class="ops-panel-section">
         <div class="ops-section-title">📊 BIGQUERY GEOSPATIAL DATA</div>
         <div class="ops-stat-row">
+          <span class="ops-stat-label">Telemetry Source</span>
+          <span class="ops-stat-val bq-source-label" style="color: var(--neon-blue);">Connecting to BigQuery...</span>
+        </div>
+        <div class="ops-stat-row">
           <span class="ops-stat-label">Queried Dataset</span>
-          <span class="ops-stat-val bq-rows">nyc_logistics.deliveries_3d</span>
+          <span class="ops-stat-val bq-dataset-label">Querying...</span>
         </div>
         <div class="ops-stat-row">
           <span class="ops-stat-label">Records Analyzed</span>
-          <span class="ops-stat-val bq-rows">1,248,390 rows</span>
+          <span class="ops-stat-val bq-rows-label">Analyzing...</span>
         </div>
         <div class="ops-stat-row">
           <span class="ops-stat-label">Query Latency</span>
-          <span class="ops-stat-val">0.34 seconds</span>
-        </div>
-        <div class="ops-stat-row">
-          <span class="ops-stat-label">Visualization Cluster</span>
-          <span class="ops-stat-val">3D Cylinders (Clamped)</span>
+          <span class="ops-stat-val bq-latency-label">0.0s</span>
         </div>
       </div>
       <div class="ops-panel-section">
-        <div class="ops-section-title">DELIVERY COMPLETED MAP</div>
+        <div class="ops-section-title">🌋 USGS SEISMIC ACTIVITY</div>
         <div style="font-size: 0.72rem; color: #cbd5e1; line-height: 1.4;">
-          Aggregated completed logistics orders. Length of the cylinders represents historical density of order drop-offs, perfectly clamped to ground level.
+          Aggregated recent Earthquakes of M2.5+ over the past 7 days. Glowing cylinder heights represent magnitude, color-coded by severity, perfectly clamped to coordinates. Click on any cylinder to inspect full telemetry.
+        </div>
+      </div>
+      <div class="ops-panel-section" id="bq-telemetry-hud">
+        <div class="ops-section-title">🌋 SELECTED SEISMIC TELEMETRY</div>
+        <div style="font-size: 0.72rem; color: #94a3b8; line-height: 1.4;">
+          Click on any glowing cylinder on the globe to inspect real-time earthquake parameters.
         </div>
       </div>
     `;
-    
-    if (cesiumViewer) {
-      cesiumViewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(centerCoords.lng, centerCoords.lat - 0.004, 1200),
-        orientation: {
-          heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-45),
-          roll: 0
-        },
-        duration: 2.0
-      });
-    }
   }
 }
 
@@ -452,6 +472,24 @@ export function initializeDeckOverlay(cesiumViewer) {
   // Render initial static elements
   drawStaticEntities();
 
+  // LEFT_CLICK interaction handler for BigQuery seismic cylinders
+  const bqClickHandler = new Cesium.ScreenSpaceEventHandler(viewerRef.canvas);
+  bqClickHandler.setInputAction((click) => {
+    if (currentMode !== "bq-analytics") return;
+    const pickedObject = viewerRef.scene.pick(click.position);
+    if (Cesium.defined(pickedObject) && pickedObject.id && pickedObject.id.id && pickedObject.id.id.startsWith("bq-column-")) {
+      const entity = pickedObject.id;
+      const desc = entity.description.getValue();
+      const bqHud = document.getElementById("bq-telemetry-hud");
+      if (bqHud) {
+        bqHud.innerHTML = `
+          <div class="ops-section-title" style="color: var(--neon-red); margin-top: 8px;">🌋 ACTIVE TELEMETRY DETAILS</div>
+          ${desc}
+        `;
+      }
+    }
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
   console.log("✅ Native Cesium ground-clamped overlays successfully initialized.");
 }
 
@@ -467,10 +505,14 @@ export function updateDeckCenter(newCoords) {
   // Clear BigQuery clusters cache so they re-cluster around the new location
   window.bqClustersCache = null;
   
-  // Propagate center to fleet simulator
-  fleetSimulator.setCenter(centerCoords);
+  // Propagate center to fleet simulator with a callback to redraw once real roads resolve
+  fleetSimulator.setCenter(centerCoords, () => {
+    drawStaticEntities();
+    updateDeckLayers();
+    console.log("🛣️ Fleet simulator snapped routes successfully calculated and drawn on real road segments.");
+  });
   
-  // Redraw static entities immediately centered on the new location
+  // Redraw static entities immediately centered on the new location using fallback translation
   drawStaticEntities();
   updateDeckLayers();
   

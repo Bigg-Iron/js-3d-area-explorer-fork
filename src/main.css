@@ -515,10 +515,10 @@ body {
   display: none !important;
 }
 
-/* Floating Camera Panel (Floating on the Right) */
+/* Floating Camera Panel (Floating in the Bottom Right Corner) */
 .ops-camera-panel {
   position: absolute;
-  top: 90px;
+  bottom: 24px;
   right: 20px;
   width: 280px;
   z-index: 999;
@@ -530,8 +530,29 @@ body {
   border-radius: 12px;
   box-shadow: var(--glass-glow);
   pointer-events: auto;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   color: #e2e8f0;
+}
+
+.ops-camera-panel.minimized {
+  bottom: 24px;
+  right: 20px;
+  width: 200px;
+  padding: 12px 16px;
+}
+
+.ops-camera-panel.minimized .camera-panel-content {
+  display: none;
+}
+
+.ops-camera-panel.minimized .camera-panel-header {
+  border-bottom: none !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.ops-camera-panel.minimized .camera-minimize-btn {
+  transform: rotate(180deg);
 }
 
 .camera-control-row {
@@ -730,7 +751,7 @@ aside#sidebar {
   left: 20px;
   bottom: 24px;
   width: 380px;
-  z-index: 998;
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   background: var(--dark-bg);
@@ -926,6 +947,7 @@ gmp-place-details-compact {
   --gmp-mat-font-family: 'Space Grotesk', sans-serif !important;
   background: transparent !important;
   color: #e2e8f0 !important;
+  min-height: 0 !important;
 }
 
 /* Ensure Places UI Kit list elements match dark futuristic theme */
@@ -937,5 +959,129 @@ gmp-place-details-compact::part(title) {
   color: #ffffff !important;
   font-family: 'Space Grotesk', sans-serif !important;
   font-weight: 700 !important;
+}
+
+/* Interactive Google Street View Panel CSS transitions */
+#street-view-container {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* If the telemetry panel is visible, shift the chat panel side-by-side to prevent overlaps */
+.ops-telemetry-panel:not(.hidden) ~ .ops-chat-panel {
+  left: 360px;
+}
+
+/* Interactive Google Street View Panel CSS transitions & Enlarge Modal Overlay */
+#street-view-wrapper {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#street-view-wrapper.enlarged {
+  position: fixed !important;
+  top: 10vh !important;
+  left: 10vw !important;
+  width: 80vw !important;
+  height: 80vh !important;
+  z-index: 10005 !important; /* render on top of all telemetry panels, sidebars, and chat boxes */
+  margin: 0 !important;
+  box-shadow: 0 0 50px rgba(0, 229, 255, 0.45) !important;
+  animation: modal-zoom-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#street-view-wrapper.enlarged #street-view-container {
+  height: 100% !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0, 229, 255, 0.4) !important;
+}
+
+/* Real Backdrop element replacing ::before for clickability */
+#street-view-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: zoom-out;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#street-view-wrapper.enlarged #street-view-backdrop {
+  display: block;
+}
+
+/* Glassmorphic overlay for compact mode user exploration prompt */
+#street-view-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  cursor: pointer;
+  background: rgba(11, 15, 25, 0);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+#street-view-overlay .street-view-overlay-btn {
+  color: #00e5ff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  background: rgba(11, 15, 25, 0.9);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  padding: 8px 16px;
+  border-radius: 20px;
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: scale(0.9);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#street-view-wrapper:hover:not(.enlarged) #street-view-overlay {
+  opacity: 1;
+  background: rgba(11, 15, 25, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+#street-view-wrapper:hover:not(.enlarged) #street-view-overlay .street-view-overlay-btn {
+  transform: scale(1);
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.5);
+  border-color: rgba(0, 229, 255, 0.7);
+}
+
+#street-view-wrapper.enlarged #street-view-overlay {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  display: none !important;
+}
+
+#street-view-expand-btn:hover {
+  transform: scale(1.08);
+  background: rgba(11, 15, 25, 0.95) !important;
+}
+
+@keyframes modal-zoom-fade {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 

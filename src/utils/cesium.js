@@ -91,11 +91,25 @@ async function createTileset() {
   try {
     const tileset = await Cesium.Cesium3DTileset.fromUrl(
       "https://tile.googleapis.com/v1/3dtiles/root.json?key=" +
-        GOOGLE_MAPS_API_KEY
+        GOOGLE_MAPS_API_KEY,
+      {
+        maximumScreenSpaceError: 16.0,
+        skipLevelOfDetail: true,
+        preferLeaves: true
+      }
     );
 
     // Add tileset to the scene
     cesiumViewer.scene.primitives.add(tileset);
+
+    // Dynamic LoD adjustments based on camera velocity/state to protect GPU/network
+    cesiumViewer.camera.moveStart.addEventListener(() => {
+      tileset.maximumScreenSpaceError = 32.0;
+    });
+
+    cesiumViewer.camera.moveEnd.addEventListener(() => {
+      tileset.maximumScreenSpaceError = 16.0;
+    });
   } catch (error) {
     console.warn(`Error creating Google 3D tileset: ${error}. Attempting EEA / OpenStreetMap fallback...`);
     try {
@@ -580,6 +594,9 @@ export async function performFlyTo(coords, options = {}) {
 export async function initializeCesiumViewer(centerCoordinates, cameraConfig) {
   // Set the default access token to null to prevent the CesiumJS viewer from requesting an access token
   Cesium.Ion.defaultAccessToken = null;
+
+  // Limit concurrent request scheduler queues to prevent starvation of autocomplete / places API calls
+  Cesium.RequestScheduler.maximumRequestsPerServer = 6;
 
   // most options prevent the creation of certain built-in widgets (cesium ui elements)
   cesiumViewer = new Cesium.Viewer("cesium-container", {

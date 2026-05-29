@@ -50,24 +50,35 @@ let selectedMarkerId = null;
 // Track the IDs of entities created by this module so we can cleanly clear them before redrawing
 let createdEntityIds = [];
 
+// Cache for already fetched and parsed SVG elements
+const svgCache = new Map();
+
 async function fetchSvgContent(url) {
+  if (svgCache.has(url)) {
+    // Return a deep clone of the cached SVG element to avoid shared references
+    return svgCache.get(url).cloneNode(true);
+  }
+
   try {
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Status ${response.status}`);
     }
-    return new DOMParser().parseFromString(await response.text(), "image/svg+xml")
-      .documentElement;
+    const svgText = await response.text();
+    const doc = new DOMParser().parseFromString(svgText, "image/svg+xml");
+    const element = doc.documentElement;
+
+    // Cache the original element for future reuse
+    svgCache.set(url, element);
+
+    return element.cloneNode(true);
   } catch (error) {
     console.warn(`⚠️ Failed to fetch SVG from ${url}. Falling back to default store icon.`, error);
     // If we weren't already trying to fetch store.svg or empty-marker.svg, try to load store.svg
     if (url !== "assets/icons/poi/store.svg" && url !== "assets/icons/empty-marker.svg") {
       try {
-        const fallbackResponse = await fetch("assets/icons/poi/store.svg");
-        if (fallbackResponse.ok) {
-          return new DOMParser().parseFromString(await fallbackResponse.text(), "image/svg+xml")
-            .documentElement;
-        }
+        const fallbackElement = await fetchSvgContent("assets/icons/poi/store.svg");
+        return fallbackElement; // Already cloned inside fetchSvgContent
       } catch (fallbackErr) {
         console.error("Critical fallback SVG fetch failed:", fallbackErr);
       }

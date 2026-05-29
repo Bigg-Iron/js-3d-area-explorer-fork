@@ -220,29 +220,45 @@ export function drawStaticEntities() {
 export function updateDynamicEntities() {
   if (!viewerRef) return;
 
-  // Clear last frame's moving elements
-  clearDynamicEntities();
+  // Track active entity IDs in this frame to perform an efficient sweep-cleanup
+  const activeIds = new Set();
 
   // 1. FLEET DYNAMIC VEHICLES
   if (currentMode === "fleet-operations") {
     const vehicles = fleetSimulator.getVehicles();
 
     vehicles.forEach(v => {
-      viewerRef.entities.add({
-        id: `fleet-vehicle-${v.id}`,
-        position: Cesium.Cartesian3.fromDegrees(v.position.lng, v.position.lat),
-        point: {
-          pixelSize: 14,
-          color: v.status === "DELAYED" ? Cesium.Color.fromCssColorString("#ff2a5f") : Cesium.Color.fromCssColorString("#39ff14"),
-          outlineColor: Cesium.Color.WHITE,
-          outlineWidth: 2,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+      const id = `fleet-vehicle-${v.id}`;
+      activeIds.add(id);
+
+      const position = Cesium.Cartesian3.fromDegrees(v.position.lng, v.position.lat);
+      const color = v.status === "DELAYED" ? Cesium.Color.fromCssColorString("#ff2a5f") : Cesium.Color.fromCssColorString("#39ff14");
+
+      const existingEntity = viewerRef.entities.getById(id);
+      if (existingEntity) {
+        // High-performance in-place property updates (Cesium-native dirty flags)
+        existingEntity.position = position;
+        if (existingEntity.point) {
+          existingEntity.point.color = color;
         }
-      });
+      } else {
+        // Cold start: allocate once
+        viewerRef.entities.add({
+          id,
+          position,
+          point: {
+            pixelSize: 14,
+            color,
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 2,
+            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+          }
+        });
+      }
     });
   }
 
-  // 2. ORIIENT INDOOR PULSING BLUE DOT
+  // 2. ORIIENT INDOOR PULSING BLUE DOT & RADAR
   if (currentMode === "indoor-venues") {
     const lat = centerCoords.lat;
     const lng = centerCoords.lng;
@@ -250,34 +266,69 @@ export function updateDynamicEntities() {
     const now = Date.now() / 4000;
     const dotLat = lat - 0.00034 + (0.0005 * (Math.sin(now) + 1));
     const dotLng = lng - 0.00016 + (0.0005 * (Math.cos(now * 0.5) + 1));
+    const position = Cesium.Cartesian3.fromDegrees(dotLng, dotLat);
 
     // Core Blue Dot
-    viewerRef.entities.add({
-      id: "oriient-blue-dot",
-      position: Cesium.Cartesian3.fromDegrees(dotLng, dotLat),
-      point: {
-        pixelSize: 10,
-        color: Cesium.Color.fromCssColorString("#00e5ff"),
-        outlineColor: Cesium.Color.WHITE,
-        outlineWidth: 2.3,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-      }
-    });
+    const blueDotId = "oriient-blue-dot";
+    activeIds.add(blueDotId);
+    const existingBlueDot = viewerRef.entities.getById(blueDotId);
+    if (existingBlueDot) {
+      existingBlueDot.position = position;
+    } else {
+      viewerRef.entities.add({
+        id: blueDotId,
+        position,
+        point: {
+          pixelSize: 10,
+          color: Cesium.Color.fromCssColorString("#00e5ff"),
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 2.3,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+        }
+      });
+    }
 
     // Pulse radar ring
+    const radarId = "oriient-radar";
+    activeIds.add(radarId);
     const radarScale = 16 + 10 * Math.sin(Date.now() / 400);
-    viewerRef.entities.add({
-      id: "oriient-radar",
-      position: Cesium.Cartesian3.fromDegrees(dotLng, dotLat),
-      point: {
-        pixelSize: radarScale,
-        color: Cesium.Color.fromCssColorString("#00e5ff").withAlpha(0.2),
-        outlineColor: Cesium.Color.fromCssColorString("#00e5ff").withAlpha(0.55),
-        outlineWidth: 1.5,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+    const existingRadar = viewerRef.entities.getById(radarId);
+    if (existingRadar) {
+      existingRadar.position = position;
+      if (existingRadar.point) {
+        existingRadar.point.pixelSize = radarScale;
       }
-    });
+    } else {
+      viewerRef.entities.add({
+        id: radarId,
+        position,
+        point: {
+          pixelSize: radarScale,
+          color: Cesium.Color.fromCssColorString("#00e5ff").withAlpha(0.2),
+          outlineColor: Cesium.Color.fromCssColorString("#00e5ff").withAlpha(0.55),
+          outlineWidth: 1.5,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+        }
+      });
+    }
   }
+
+  // 3. SWEEP-CLEANUP OF INACTIVE OVERLAY ENTITIES
+  // Efficiently sweeps away entities belonging to other modes or offline devices
+  const dynamicPrefixes = ["fleet-vehicle-", "oriient-blue-dot", "oriient-radar"];
+  const entitiesToRemove = [];
+
+  viewerRef.entities.values.forEach(entity => {
+    if (entity.id && dynamicPrefixes.some(prefix => entity.id.startsWith(prefix))) {
+      if (!activeIds.has(entity.id)) {
+        entitiesToRemove.push(entity);
+      }
+    }
+  });
+
+  entitiesToRemove.forEach(entity => {
+    viewerRef.entities.remove(entity);
+  });
 }
 
 // Refresh active visual states

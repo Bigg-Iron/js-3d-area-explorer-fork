@@ -1,63 +1,95 @@
 // Copyright 2026 Google LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//      http://www.apache.org/licenses/LICENSE-2.0
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
-import { GOOGLE_MAPS_API_KEY } from "../env.js";
-
-/** @type {google.maps.places.PlacesService} */
 let placesService = null;
+let placesPromise = null;
 
 /**
- * Asynchronously initializes and loads the Google Maps JavaScript API with specific configurations.
- * Supports fallback structures to ensure dynamic loading of both modern Places (New) and legacy endpoints.
+ * Asynchronously initializes and loads the Google Maps JavaScript API.
+ * Pulls the API key dynamically from our Express config endpoint.
  */
-async function initGoogleMaps() {
-  const script = document.createElement("script");
-  script.type = "text/javascript";
-  // prettier-ignore
-  script.innerText = (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
-    key: GOOGLE_MAPS_API_KEY,
-    v: "weekly",
-  });
+export async function initGoogleMaps() {
+  if (placesPromise) return placesPromise;
 
-  // add the script to the document head
-  document.head.appendChild(script);
+  placesPromise = (async () => {
+    if (window.google && window.google.maps && window.google.maps.importLibrary) {
+      return window.google;
+    }
 
-  // Load the Google Maps places library
-  await google.maps.importLibrary("places");
+    try {
+      const res = await fetch('/api/config');
+      const config = await res.json();
+      const apiKey = config.apiKey;
 
-  // Safely attempt to initialize legacy PlacesService
-  try {
-    placesService = new google.maps.places.PlacesService(
-      document.createElement("div")
-    );
-  } catch (err) {
-    console.warn("⚠️ Legacy PlacesService initialization skipped (likely using modern Places API New credentials).");
-  }
+      if (!apiKey) {
+        throw new Error("Google Maps API Key is missing in the configuration.");
+      }
+
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.type = "text/javascript";
+        
+        // Google Maps Loader
+        script.innerText = ((g) => {
+          var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window;
+          b = b[c] || (b[c] = {});
+          var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => {
+            await (a = m.createElement("script"));
+            e.set("libraries", [...r] + "");
+            for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]);
+            e.set("callback", c + ".maps." + q);
+            a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
+            d[q] = f;
+            a.onerror = () => h = n(Error(p + " could not load."));
+            a.nonce = m.querySelector("script[nonce]")?.nonce || "";
+            m.head.append(a);
+          }));
+          d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n));
+        })({
+          key: apiKey,
+          v: "weekly",
+        });
+
+        document.head.appendChild(script);
+
+        // Periodically poll for the importLibrary to be successfully mounted
+        const checkInterval = setInterval(() => {
+          if (window.google && window.google.maps && window.google.maps.importLibrary) {
+            clearInterval(checkInterval);
+            
+            // Import places library
+            window.google.maps.importLibrary("places").then(() => {
+              try {
+                placesService = new window.google.maps.places.PlacesService(
+                  document.createElement("div")
+                );
+              } catch (err) {
+                console.warn("⚠️ Legacy PlacesService initialization skipped (using modern Places API New).");
+              }
+              resolve(window.google);
+            }).catch(reject);
+          }
+        }, 50);
+      });
+    } catch (err) {
+      console.error("Failed to load Google Maps SDK:", err);
+      throw err;
+    }
+  })();
+
+  return placesPromise;
 }
-
-await initGoogleMaps();
 
 /**
  * Returns details for a given place ID using modern Places API (New) with fallback.
- * Maps result back to legacy format for 100% backwards-compatibility with sidebar rendering files.
- *
- * @param {string} placeId - The ID of the place to retrieve details for.
- * @returns {Promise<object>} - A promise resolving to the mapped place details.
  */
 export async function getPlaceDetails(placeId) {
+  await initGoogleMaps();
   try {
     const { Place } = await google.maps.importLibrary("places");
     const place = new Place({ id: placeId });
 
-    // Fetch modern fields required by our sidebar elements
+    // Fetch fields for compact places details card
     await place.fetchFields({
       fields: [
         "displayName",
@@ -73,7 +105,6 @@ export async function getPlaceDetails(placeId) {
       ]
     });
 
-    // Translate modern camelCase results to legacy formats expected by updatePlaceHeader, updatePlaceOverview, etc.
     const legacyPlace = {
       name: place.displayName || "",
       formatted_address: place.formattedAddress || "",
@@ -83,18 +114,15 @@ export async function getPlaceDetails(placeId) {
       website: place.websiteUri || "",
       formatted_phone_number: place.nationalPhoneNumber || "",
       
-      // Legacy code calls photos[0].getUrl()
       photos: place.photos && place.photos.length > 0 ? [{
         getUrl: () => place.photos[0].getURI({ maxWidth: 400, maxHeight: 400 })
       }] : null,
       
-      // Legacy opening hours has an .isOpen() function and .weekday_text array
       opening_hours: place.regularOpeningHours ? {
         isOpen: () => place.regularOpeningHours.nextOpeningTime !== undefined,
         weekday_text: place.regularOpeningHours.weekdayDescriptions || []
       } : null,
       
-      // Reviews mapping
       reviews: place.reviews ? place.reviews.map(r => ({
         author_name: r.authorAttribution?.displayName || "Anonymous",
         text: r.text || "",
@@ -122,16 +150,13 @@ export async function getPlaceDetails(placeId) {
 }
 
 /**
- * Maps a list of place types to one of the 16 available local SVG icons.
- * @param {string[]} types - The types returned from Google Places API.
- * @returns {string} One of the 16 valid icon names.
+ * Maps a list of place types to one of the available local SVG icons.
  */
 function getPoiIconName(types) {
   if (!types || !Array.isArray(types) || types.length === 0) {
     return "store";
   }
 
-  // Create a mapping of keywords to our 16 available icons
   const mappings = [
     { icon: "bank", keywords: ["bank", "finance", "accounting", "atm", "money_lender"] },
     { icon: "bar", keywords: ["bar", "night_club", "pub", "liquor_store", "tavern", "nightlife", "lounge"] },
@@ -150,15 +175,11 @@ function getPoiIconName(types) {
     { icon: "store", keywords: ["store", "shopping", "mall", "shop", "boutique", "dealer", "retail"] }
   ];
 
-  // Try exact match or keyword match on any of the types
   for (const type of types) {
     const lowerType = type.toLowerCase();
-    
-    // Check if the type directly matches one of our 16 icon names
     const directMatch = mappings.find(m => m.icon === lowerType);
     if (directMatch) return directMatch.icon;
 
-    // Check if the type contains any keyword in our mappings
     for (const mapping of mappings) {
       if (mapping.keywords.some(keyword => lowerType.includes(keyword))) {
         return mapping.icon;
@@ -166,18 +187,14 @@ function getPoiIconName(types) {
     }
   }
 
-  // Fallback to "store" as a generic business icon
   return "store";
 }
 
 /**
- * Retrieves the nearby places based on coordinates using modern Place.searchNearby.
- *
- * @param {PoiConfig} poiConfig - Search configurations.
- * @param {google.maps.LatLng} coordinates - LatLng location coordinates.
- * @returns {Promise<object[]>} - Mapped place results.
+ * Retrieves nearby places using modern searchNearby or legacy fallback.
  */
 export async function getNearbyPois(poiConfig, coordinates) {
+  await initGoogleMaps();
   try {
     const { Place } = await google.maps.importLibrary("places");
     const placesPromises = [];
@@ -215,7 +232,6 @@ export async function getNearbyPois(poiConfig, coordinates) {
     const resultsArray = await Promise.all(placesPromises);
     const allPlaces = resultsArray.flat();
 
-    // Map modern results to the format expected by create-markers.js
     const mappedPlaces = allPlaces.map(place => {
       const iconName = getPoiIconName(place.types);
       const iconBaseUri = `assets/icons/poi/${iconName}`;
@@ -298,14 +314,18 @@ export async function getNearbyPois(poiConfig, coordinates) {
 
 /**
  * Converts a location identifier into a Google Maps LatLng object.
- *
- * @param {google.maps.LatLng | string} location - The identifier.
- * @param {'placeName' | 'placeId' | 'coords'} type - The conversion type.
- * @returns {Promise<google.maps.LatLng>} The Google Maps LatLng object.
  */
 export async function getLocation(location, type) {
-  const coords = new google.maps.LatLng(location);
+  await initGoogleMaps();
+  
+  if (location && typeof location.lat === 'function') {
+    return location;
+  }
+  if (location && typeof location.lat === 'number') {
+    return new google.maps.LatLng(location.lat, location.lng);
+  }
 
+  const coords = new google.maps.LatLng(location);
   if (!isNaN(coords.lat()) && !isNaN(coords.lng())) {
     return coords;
   }
@@ -319,9 +339,6 @@ export async function getLocation(location, type) {
   }
 }
 
-/**
- * Fetch latitude and longitude for a Place ID.
- */
 async function fetchCoordsByPlaceId(placeId) {
   try {
     const { Place } = await google.maps.importLibrary("places");
@@ -345,9 +362,6 @@ async function fetchCoordsByPlaceId(placeId) {
   }
 }
 
-/**
- * Fetch latitude and longitude for a Place Name text query.
- */
 async function fetchCoordsByPlaceName(placeName) {
   try {
     const { Place } = await google.maps.importLibrary("places");
@@ -379,18 +393,15 @@ async function fetchCoordsByPlaceName(placeName) {
 
 /**
  * Initializes Google Places Autocomplete on a given text input.
- * Supports legacy bounding AND a modern keypress fallback using Places (New) Text Search.
- *
- * @param {HTMLInputElement} inputElement - The text input element.
- * @param {Function} onPlaceSelectedCallback - Callback executed when a place is chosen.
  */
 export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
   if (!inputElement) return;
+  await initGoogleMaps();
 
   try {
     const { Autocomplete, Place } = await google.maps.importLibrary("places");
 
-    // Add a text-search Enter-key listener as a robust modern fallback
+    // Add a text-search Enter-key listener
     inputElement.addEventListener("keydown", async (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -398,7 +409,6 @@ export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
         if (!query) return;
 
         try {
-          console.log(`🔍 Autocomplete Fallback: Searching by text for "${query}" using Places (New)...`);
           const request = {
             textQuery: query,
             fields: ["displayName", "location", "id"]
@@ -417,16 +427,13 @@ export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
             };
 
             onPlaceSelectedCallback(mockPlaceResult);
-          } else {
-            console.warn("No places found for text query:", query);
           }
         } catch (err) {
-          console.error("Text search fallback failed:", err);
+          console.error("Text search autocomplete fallback failed:", err);
         }
       }
     });
 
-    // Try to initialize legacy autocomplete, but catch any errors safely
     try {
       const autocomplete = new Autocomplete(inputElement, {
         fields: ["geometry", "name", "formatted_address"]
@@ -438,9 +445,9 @@ export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
           onPlaceSelectedCallback(place);
         }
       });
-      console.log("✅ Legacy Google Places Autocomplete successfully bound.");
+      console.log("✅ Google Places Autocomplete successfully bound.");
     } catch (legacyErr) {
-      console.warn("⚠️ Legacy Autocomplete widget skipped (normal when credentials only permit Places API New). Enter key triggers Places (New) search.");
+      console.warn("⚠️ Legacy Autocomplete skipped. Enter key triggers Places (New) search.");
     }
 
   } catch (error) {

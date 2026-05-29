@@ -1,0 +1,14 @@
+{
+  "location": {
+    "coordinates": { "lat": 40.74244, "lng": -74.006144 }
+  },
+  "poi": {
+    "density": 30,
+    "searchRadius": 1000,
+    "types": ["restaurant", "bar", "supermarket"]
+  },
+  "camera": {
+    "speed": 1,
+    "orbitType": "dynamic-orbit"
+  }
+}

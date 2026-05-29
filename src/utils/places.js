@@ -223,6 +223,10 @@ export async function getNearbyPois(poiConfig, coordinates) {
         .then(({ places }) => places || [])
         .catch(err => {
           console.error(`Error searching type ${locationType}:`, err);
+          const errString = String(err);
+          if (errString.includes("ApiTargetBlockedMapError") || errString.includes("not authorized") || errString.includes("restricted")) {
+            throw err;
+          }
           return [];
         });
 
@@ -325,8 +329,45 @@ export async function getLocation(location, type) {
     return new google.maps.LatLng(location.lat, location.lng);
   }
 
-  const coords = new google.maps.LatLng(location);
-  if (!isNaN(coords.lat()) && !isNaN(coords.lng())) {
+  let coords = null;
+  if (location && typeof location === 'object') {
+    if (Array.isArray(location) && location.length >= 2) {
+      const lat = parseFloat(location[0]);
+      const lng = parseFloat(location[1]);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        coords = new google.maps.LatLng(lat, lng);
+      }
+    } else {
+      const latVal = location.lat;
+      const lngVal = location.lng;
+      if (latVal !== undefined && lngVal !== undefined) {
+        const lat = typeof latVal === 'function' ? latVal() : parseFloat(latVal);
+        const lng = typeof lngVal === 'function' ? lngVal() : parseFloat(lngVal);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          coords = new google.maps.LatLng(lat, lng);
+        }
+      }
+    }
+  } else if (typeof location === 'string') {
+    const parts = location.split(',');
+    if (parts.length === 2) {
+      const lat = parseFloat(parts[0]);
+      const lng = parseFloat(parts[1]);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        coords = new google.maps.LatLng(lat, lng);
+      }
+    }
+  }
+
+  if (!coords) {
+    try {
+      coords = new google.maps.LatLng(location);
+    } catch (e) {
+      coords = null;
+    }
+  }
+
+  if (coords && !isNaN(coords.lat()) && !isNaN(coords.lng())) {
     return coords;
   }
 
@@ -429,7 +470,19 @@ export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
             onPlaceSelectedCallback(mockPlaceResult);
           }
         } catch (err) {
-          console.error("Text search autocomplete fallback failed:", err);
+          console.warn("⚠️ Modern searchByText failed in autocomplete, trying legacy fallback...", err);
+          if (placesService) {
+            placesService.findPlaceFromQuery({ query, fields: ["geometry", "name", "place_id"] }, (results, status) => {
+              if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+                const firstResult = results[0];
+                onPlaceSelectedCallback(firstResult);
+              } else {
+                console.error("Text search autocomplete legacy fallback failed:", status);
+              }
+            });
+          } else {
+            console.error("Text search autocomplete fallback failed:", err);
+          }
         }
       }
     });

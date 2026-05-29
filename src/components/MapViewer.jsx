@@ -437,7 +437,7 @@ export const MapViewer = () => {
       const centerMarkerData = {
         name: "",
         geometry: {
-          location: new google.maps.LatLng(centerCoords),
+          location: new google.maps.LatLng(centerCoords.lat, centerCoords.lng),
         },
         place_id: null,
         icon_background_color: "#ea4335",

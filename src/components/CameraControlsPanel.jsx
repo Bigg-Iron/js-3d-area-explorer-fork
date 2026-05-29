@@ -28,11 +28,17 @@ export const CameraControlsPanel = () => {
 
   return (
     <div className="absolute bottom-6 right-6 z-10 w-80 glass-panel p-5 rounded-2xl border border-white/10 flex flex-col gap-4 shadow-xl pointer-events-auto">
-      <div className="text-xs font-bold text-slate-400 tracking-widest uppercase">🎥 CAMERA CONTROLS</div>
+      <div className="text-xs font-bold text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
+        <span className="material-symbols-outlined text-base text-indigo-400">videocam</span>
+        CAMERA CONTROLS
+      </div>
 
       {/* Auto Orbit Mode Toggle */}
       <div className="flex justify-between items-center">
-        <span className="text-xs font-semibold text-slate-300">🌌 Auto Orbit Mode</span>
+        <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+          <span className="material-symbols-outlined text-sm text-indigo-400">public</span>
+          Auto Orbit Mode
+        </span>
         <label className="relative inline-flex items-center cursor-pointer select-none">
           <input
             type="checkbox"
@@ -47,7 +53,10 @@ export const CameraControlsPanel = () => {
       {/* Speed Slider */}
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between items-center text-xs text-slate-300">
-          <span>🔄 Orbit Speed</span>
+          <span className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-sm text-indigo-400">speed</span>
+            Orbit Speed
+          </span>
           <span className="font-bold text-indigo-400">{cameraState.orbitSpeed.toFixed(1)} RPM</span>
         </div>
         <input
@@ -64,7 +73,10 @@ export const CameraControlsPanel = () => {
       {/* Radius Slider */}
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between items-center text-xs text-slate-300">
-          <span>📏 Orbit Radius</span>
+          <span className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-sm text-indigo-400">straighten</span>
+            Orbit Radius
+          </span>
           <span className="font-bold text-indigo-400">{cameraState.orbitRadius} m</span>
         </div>
         <input
@@ -81,7 +93,10 @@ export const CameraControlsPanel = () => {
       {/* Pitch Slider */}
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between items-center text-xs text-slate-300">
-          <span>📐 Pitch (Tilt)</span>
+          <span className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-sm text-indigo-400">architecture</span>
+            Pitch (Tilt)
+          </span>
           <span className="font-bold text-indigo-400">{cameraState.orbitPitch}°</span>
         </div>
         <input
@@ -97,7 +112,10 @@ export const CameraControlsPanel = () => {
 
       {/* Orbit Style Select */}
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs text-slate-300">🌊 Orbit Style</span>
+        <span className="text-xs text-slate-300 flex items-center gap-1.5">
+          <span className="material-symbols-outlined text-sm text-indigo-400">waves</span>
+          Orbit Style
+        </span>
         <select
           value={cameraState.orbitStyle}
           onChange={handleStyleChange}

@@ -27,7 +27,10 @@ export const TelemetryPanel = () => {
       {opsMode === 'fleet-operations' && (
         <>
           <div className="flex flex-col gap-2">
-            <div className="text-xs font-bold text-slate-400 tracking-widest uppercase">🚚 FLEET ENGINE METRICS</div>
+            <div className="text-xs font-bold text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-base text-[#39ff14]">local_shipping</span>
+              FLEET ENGINE METRICS
+            </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-slate-400 text-xs">Active Transits</span>
               <span className="text-[#39ff14] text-xs font-semibold">3 Vehicles Online</span>
@@ -69,7 +72,10 @@ export const TelemetryPanel = () => {
       {opsMode === 'indoor-venues' && (
         <>
           <div className="flex flex-col gap-2">
-            <div className="text-xs font-bold text-slate-400 tracking-widest uppercase">🏢 ORIIENT INDOOR GPS</div>
+            <div className="text-xs font-bold text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-base text-[#00e5ff]">apartment</span>
+              ORIIENT INDOOR GPS
+            </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-slate-400 text-xs">Active Venue</span>
               <span className="text-white text-xs font-semibold">Chelsea Market Retail Hub</span>
@@ -106,7 +112,10 @@ export const TelemetryPanel = () => {
       {opsMode === 'bq-analytics' && (
         <>
           <div className="flex flex-col gap-2">
-            <div className="text-xs font-bold text-slate-400 tracking-widest uppercase">📊 BIGQUERY GEOSPATIAL DATA</div>
+            <div className="text-xs font-bold text-slate-400 tracking-widest uppercase flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-base text-[#d500f9]">bar_chart</span>
+              BIGQUERY GEOSPATIAL DATA
+            </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-slate-400 text-xs">Queried Dataset</span>
               <span className="text-white text-xs font-semibold">nyc_logistics.deliveries_3d</span>

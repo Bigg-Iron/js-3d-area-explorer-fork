@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { initAutocomplete, getNearbyPois } from '../utils/places';
 import { performFlyTo } from './MapViewer';
@@ -66,7 +66,7 @@ export const HeaderPanel = () => {
         const latLng = new google.maps.LatLng(initialCenter.lat, initialCenter.lng);
         const pois = await getNearbyPois(POI_CONFIG, latLng);
         setNearbyPois(pois);
-      } catch (err) {
+      } catch {
         console.warn("Retrying maps load for initial POIs...");
         // Retrying in 1s if Google Maps is still loading asynchronously
         setTimeout(loadInitialPois, 1000);

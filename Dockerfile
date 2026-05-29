@@ -1,7 +1,7 @@
 # Copyright 2026 Google LLC
 # Production-ready secure container configuration
 
-FROM node:21-alpine
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /app

@@ -213,7 +213,9 @@ export const AIAssistantPanel = () => {
           place_id: p.id,
           name: p.displayName?.text || p.displayName || '',
           geometry: {
-            location: new google.maps.LatLng(p.location.latitude, p.location.longitude)
+            location: (window.google && window.google.maps && window.google.maps.LatLng)
+              ? new google.maps.LatLng(p.location.latitude, p.location.longitude)
+              : { lat: () => p.location.latitude, lng: () => p.location.longitude }
           },
           icon_background_color: p.iconBackgroundColor || '#4f46e5',
           icon_mask_base_uri: iconBaseUri,

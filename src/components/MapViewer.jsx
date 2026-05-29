@@ -422,6 +422,11 @@ export const MapViewer = () => {
     if (!cesiumViewer || !nearbyPois) return;
 
     const drawMarkers = async () => {
+      if (!window.google || !window.google.maps) {
+        console.warn("Google Maps SDK not loaded yet. Skipping marker rendering.");
+        return;
+      }
+
       // Clear old marker entities
       createdEntityIds.forEach((id) => {
         const entity = cesiumViewer.entities.getById(id);

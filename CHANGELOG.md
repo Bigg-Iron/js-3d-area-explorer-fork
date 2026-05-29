@@ -9,6 +9,13 @@
 
 Before staging your final commit, you open CHANGELOG.md and add a line under ### Added: - User authentication via JWT ([#12]). You commit, push, and open your GitHub Pull Request.
 
+## [1.3.1] - 2026-05-29
+
+### Fixed
+- **Corrected Places SDK Casing Mismatch:** Fixed `InvalidValueError` in modern Places `fetchFields()` by correcting `"websiteUri"` casing to `"websiteURI"` (with uppercase `URI` as strictly required by the modern Google Places class structure).
+- **Added Missing SVG Assets:** Created custom, futuristic `coffee.svg` and `center.svg` vector icons in `public/assets/icons/poi/`, fully resolving HTTP 404 console resource warnings during POI dynamic plotting.
+- **Port Conflict & Dotenv Loading Hardening:** Improved local backend startup by loading `.env` using absolute pathing and implementing error event listener trapping to catch `EADDRINUSE` port conflicts.
+
 ## [1.3.0] - 2026-05-29
 
 ### Fixed

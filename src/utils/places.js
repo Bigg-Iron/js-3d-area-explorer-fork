@@ -97,7 +97,7 @@ export async function getPlaceDetails(placeId) {
         "rating",
         "userRatingCount",
         "types",
-        "websiteUri",
+        "websiteURI",
         "nationalPhoneNumber",
         "regularOpeningHours",
         "photos",
@@ -111,7 +111,7 @@ export async function getPlaceDetails(placeId) {
       rating: place.rating,
       user_ratings_total: place.userRatingCount,
       types: place.types || [],
-      website: place.websiteUri || "",
+      website: place.websiteURI || "",
       formatted_phone_number: place.nationalPhoneNumber || "",
       
       photos: place.photos && place.photos.length > 0 ? [{

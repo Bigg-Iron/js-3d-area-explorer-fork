@@ -14,10 +14,15 @@ app.use(express.json());
 
 const apiKey = process.env.GOOGLE_MAPS_API_KEY;
 if (!apiKey) {
-  console.error("⚠️ WARNING: GOOGLE_MAPS_API_KEY environment variable is not configured.");
+  console.error("⚠️ FATAL: GOOGLE_MAPS_API_KEY environment variable is not configured. All Maps/Places API calls will fail.");
+} else {
+  console.log(`✅ GOOGLE_MAPS_API_KEY loaded (starts: ${apiKey.slice(0, 6)}..., length: ${apiKey.length})`);
 }
 
-const serverApiKey = process.env.SERVER_API_KEY || process.env.GEMINI_API_KEY || apiKey;
+const serverApiKey = process.env.SERVER_API_KEY || process.env.GEMINI_API_KEY;
+if (!serverApiKey) {
+  console.error("⚠️ WARNING: No SERVER_API_KEY or GEMINI_API_KEY configured. Gemini chat will fail.");
+}
 
 
 // Simulated weather service for real-world tailormade suggestions
@@ -37,6 +42,10 @@ function simulateWeather(location) {
 
 // Places API (New) Text Search
 async function searchPlacesReal(textQuery, locationBias) {
+  if (!apiKey) {
+    console.error("searchPlacesReal: GOOGLE_MAPS_API_KEY is not set.");
+    return [];
+  }
   try {
     const url = 'https://places.googleapis.com/v1/places:searchText';
     const headers = {
@@ -64,6 +73,10 @@ async function searchPlacesReal(textQuery, locationBias) {
     });
 
     const data = await response.json();
+    if (!response.ok) {
+      console.error(`Places API error ${response.status}:`, JSON.stringify(data));
+      return [];
+    }
     return data.places || [];
   } catch (err) {
     console.error("Error inside searchPlacesReal:", err);
@@ -73,13 +86,22 @@ async function searchPlacesReal(textQuery, locationBias) {
 
 // Directions API Route Calculation
 async function computeRoutesReal(origin, destination, travelMode = 'DRIVE') {
+  if (!apiKey) {
+    console.error("computeRoutesReal: GOOGLE_MAPS_API_KEY is not set.");
+    return { error: "API key not configured." };
+  }
   try {
     const mode = travelMode.toLowerCase();
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&key=${apiKey}`;
-    
+
     const response = await fetch(url);
     const data = await response.json();
-    
+
+    if (!response.ok) {
+      console.error(`Directions API HTTP error ${response.status}:`, JSON.stringify(data));
+      return { error: `HTTP ${response.status} from Directions API` };
+    }
+
     if (data.status === 'OK' && data.routes && data.routes.length > 0) {
       const route = data.routes[0];
       const leg = route.legs[0];
@@ -102,6 +124,10 @@ async function computeRoutesReal(origin, destination, travelMode = 'DRIVE') {
 
 // Geocoding API for direct map flights
 async function geocodeAddressReal(address) {
+  if (!apiKey) {
+    console.error("geocodeAddressReal: GOOGLE_MAPS_API_KEY is not set.");
+    return { error: "API key not configured." };
+  }
   const query = address.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '');
   if (query === 'north pole') {
     return {
@@ -122,6 +148,13 @@ async function geocodeAddressReal(address) {
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
     const response = await fetch(url);
     const data = await response.json();
+    if (!response.ok) {
+      console.error(`Geocoding API HTTP error ${response.status}:`, JSON.stringify(data));
+      return { error: `HTTP ${response.status} from Geocoding API` };
+    }
+    if (data.status !== 'OK') {
+      console.error(`Geocoding API status error: ${data.status} — ${data.error_message || ''}`);
+    }
     if (data.status === 'OK' && data.results && data.results.length > 0) {
       const loc = data.results[0].geometry.location;
       return {
@@ -154,6 +187,12 @@ app.post('/api/chat', async (req, res) => {
   const sendSSE = (event, data) => {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
+
+  if (!serverApiKey) {
+    sendSSE('error', 'Gemini API key (SERVER_API_KEY or GEMINI_API_KEY) is not configured on the server.');
+    res.end();
+    return;
+  }
 
   try {
     // Dynamic import to prevent syntax error on platforms or ESM bundling

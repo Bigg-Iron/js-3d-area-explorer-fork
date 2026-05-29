@@ -1,5 +1,5 @@
-# Add this under the dotenv files section
-src/env.js
+# Local environment variables containing sensitive API keys
+**/env.js
 # Logs
 logs
 *.log
@@ -154,4 +154,3 @@ ehthumbs.db
 Thumbs.db
 .vscode/
 .idea/
-node_modules

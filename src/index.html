@@ -172,8 +172,17 @@
             <gmp-place-details-place-request></gmp-place-details-place-request>
             <gmp-place-all-content></gmp-place-all-content>
           </gmp-place-details-compact>
-          <!-- Interactive Google Street View Telemetry Panel -->
-          <div id="street-view-container" style="width: calc(100% - 24px); height: 220px; border-radius: 8px; margin: 12px; border: 1px solid var(--dark-border); box-shadow: 0 0 10px rgba(0, 229, 255, 0.15); display: none; flex-shrink: 0; pointer-events: auto; overflow: hidden; background: rgba(0, 0, 0, 0.4);"></div>
+          <!-- Interactive Google Street View Telemetry Panel Wrapper -->
+          <div id="street-view-wrapper" style="position: relative; width: calc(100% - 24px); margin: 12px; display: none; flex-shrink: 0; pointer-events: auto;">
+            <div id="street-view-backdrop"></div>
+            <div id="street-view-container" style="width: 100%; height: 220px; border-radius: 8px; border: 1px solid var(--dark-border); box-shadow: 0 0 10px rgba(0, 229, 255, 0.15); pointer-events: auto; overflow: hidden; background: rgba(0, 0, 0, 0.4);"></div>
+            <div id="street-view-overlay">
+              <span class="street-view-overlay-btn">
+                <span>⛶</span> Click to Explore
+              </span>
+            </div>
+            <button id="street-view-expand-btn" title="Expand Street View" style="position: absolute; top: 8px; right: 8px; z-index: 10; background: rgba(11, 15, 25, 0.85); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 4px; color: #00e5ff; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; backdrop-filter: blur(4px); box-shadow: 0 0 8px rgba(0,229,255,0.25); transition: all 0.3s ease;">⛶</button>
+          </div>
         </div>
       </aside>
     </main>

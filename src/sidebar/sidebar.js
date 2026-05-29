@@ -123,10 +123,11 @@ export async function updateSidebarElements(placeId) {
 
       const streetViewService = new google.maps.StreetViewService();
       streetViewService.getPanorama({ location: latLng, radius: 50 }, (data, status) => {
+        const wrapper = document.getElementById("street-view-wrapper");
         const container = document.getElementById("street-view-container");
-        if (container) {
+        if (wrapper && container) {
           if (status === google.maps.StreetViewStatus.OK) {
-            container.style.display = "block";
+            wrapper.style.display = "block";
             const panorama = new google.maps.StreetViewPanorama(container, {
               pano: data.location.pano,
               visible: true,
@@ -140,8 +141,67 @@ export async function updateSidebarElements(placeId) {
               motionTrackingControl: false
             });
             panorama.setPov({ heading: 270, pitch: 0 });
+
+            // Store active panorama on global scope for resizing
+            window.activePanorama = panorama;
+
+            // Unified Enlarge/Minimize state toggle function
+            const expandBtn = document.getElementById("street-view-expand-btn");
+            if (!expandBtn) return;
+
+            const newExpandBtn = expandBtn.cloneNode(true);
+            expandBtn.parentNode.replaceChild(newExpandBtn, expandBtn);
+
+            const toggleEnlarge = (forceState) => {
+              const shouldEnlarge = forceState !== undefined ? forceState : !wrapper.classList.contains("enlarged");
+              
+              if (shouldEnlarge) {
+                wrapper.classList.add("enlarged");
+                newExpandBtn.innerHTML = "✕";
+                newExpandBtn.title = "Minimize Street View";
+                newExpandBtn.style.color = "var(--neon-red)";
+                newExpandBtn.style.borderColor = "rgba(255, 42, 95, 0.4)";
+                newExpandBtn.style.boxShadow = "0 0 12px rgba(255, 42, 95, 0.4)";
+              } else {
+                wrapper.classList.remove("enlarged");
+                newExpandBtn.innerHTML = "⛶";
+                newExpandBtn.title = "Expand Street View";
+                newExpandBtn.style.color = "#00e5ff";
+                newExpandBtn.style.borderColor = "rgba(0, 229, 255, 0.3)";
+                newExpandBtn.style.boxShadow = "0 0 8px rgba(0, 229, 255, 0.25)";
+              }
+
+              // Force Google Maps API layout recalculation after transition
+              setTimeout(() => {
+                google.maps.event.trigger(panorama, 'resize');
+              }, 250);
+            };
+
+            // Wire up Expand button
+            newExpandBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              toggleEnlarge();
+            });
+
+            // Wire up compact Overlay click to expand
+            const overlay = document.getElementById("street-view-overlay");
+            if (overlay) {
+              overlay.addEventListener("click", (e) => {
+                e.stopPropagation();
+                toggleEnlarge(true);
+              });
+            }
+
+            // Wire up Backdrop click to close / minimize
+            const backdrop = document.getElementById("street-view-backdrop");
+            if (backdrop) {
+              backdrop.addEventListener("click", (e) => {
+                e.stopPropagation();
+                toggleEnlarge(false);
+              });
+            }
           } else {
-            container.style.display = "none";
+            wrapper.style.display = "none";
           }
         }
       });

@@ -1,5 +1,4 @@
 // Copyright 2026 Google LLC
-import React from 'react';
 import { useStore } from '../store/useStore';
 
 export const CameraControlsPanel = () => {
@@ -42,6 +41,8 @@ export const CameraControlsPanel = () => {
         <label className="relative inline-flex items-center cursor-pointer select-none">
           <input
             type="checkbox"
+            id="auto-orbit-toggle"
+            name="auto-orbit-active"
             checked={cameraState.autoOrbitEnabled}
             onChange={handleToggleOrbit}
             className="sr-only peer"
@@ -61,6 +62,8 @@ export const CameraControlsPanel = () => {
         </div>
         <input
           type="range"
+          id="orbit-speed-slider"
+          name="orbit-speed"
           min="0.1"
           max="4.0"
           step="0.1"
@@ -81,6 +84,8 @@ export const CameraControlsPanel = () => {
         </div>
         <input
           type="range"
+          id="orbit-radius-slider"
+          name="orbit-radius"
           min="200"
           max="2500"
           step="50"
@@ -101,6 +106,8 @@ export const CameraControlsPanel = () => {
         </div>
         <input
           type="range"
+          id="orbit-pitch-slider"
+          name="orbit-pitch"
           min="-75"
           max="-15"
           step="1"

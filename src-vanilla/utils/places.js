@@ -126,7 +126,7 @@ export async function getPlaceDetails(placeId) {
  * @param {string[]} types - The types returned from Google Places API.
  * @returns {string} One of the 16 valid icon names.
  */
-function getPoiIconName(types) {
+export function getPoiIconName(types) {
   if (!types || !Array.isArray(types) || types.length === 0) {
     return "store";
   }

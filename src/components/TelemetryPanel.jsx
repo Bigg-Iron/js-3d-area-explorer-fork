@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { fleetSimulator } from '../utils/fleet-simulator';
 
@@ -15,6 +15,7 @@ export const TelemetryPanel = () => {
       setVehicles(fleetSimulator.getVehicles());
     }, 150);
 
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     setVehicles(fleetSimulator.getVehicles());
 
     return () => clearInterval(interval);

@@ -527,15 +527,19 @@ export const MapViewer = () => {
         const picked = cesiumViewer.scene.pick(movement.endPosition);
         if (picked && picked.primitive && picked.primitive instanceof Cesium.Billboard && picked.primitive.id.id !== CENTER_MARKER_ID) {
           document.body.style.cursor = 'pointer';
-          if (hoveredMarker && picked.primitive.id.id !== hoveredMarker.id.id) {
+          if (hoveredMarker && hoveredMarker.id && hoveredMarker.id.label && picked.primitive.id.id !== hoveredMarker.id.id) {
             hoveredMarker.id.label.scaleByDistance = defaultLabelVisibility;
           }
           hoveredMarker = picked.primitive;
-          hoveredMarker.id.label.scaleByDistance = undefined;
+          if (hoveredMarker.id && hoveredMarker.id.label) {
+            hoveredMarker.id.label.scaleByDistance = undefined;
+          }
         } else {
           document.body.style.cursor = 'default';
           if (hoveredMarker) {
-            hoveredMarker.id.label.scaleByDistance = defaultLabelVisibility;
+            if (hoveredMarker.id && hoveredMarker.id.label) {
+              hoveredMarker.id.label.scaleByDistance = defaultLabelVisibility;
+            }
             hoveredMarker = null;
           }
         }

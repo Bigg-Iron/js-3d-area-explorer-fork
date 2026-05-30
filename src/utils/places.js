@@ -158,7 +158,7 @@ export async function getPlaceDetails(placeId) {
 /**
  * Maps a list of place types to one of the available local SVG icons.
  */
-function getPoiIconName(types) {
+export function getPoiIconName(types) {
   if (!types || !Array.isArray(types) || types.length === 0) {
     return "store";
   }

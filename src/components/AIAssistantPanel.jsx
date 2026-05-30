@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import * as Cesium from 'cesium';
 import { useStore } from '../store/useStore';
 import { performFlyTo, cesiumViewer } from './MapViewer';
+import { getPoiIconName } from '../utils/places';
 
 // Module-level variable to store active route entity reference
 let activeRouteEntity = null;
@@ -205,10 +206,8 @@ export const AIAssistantPanel = () => {
 
       // Map places format back to legacy expected by MapViewer
       const mappedPois = action.places.map((p) => {
-        let iconBaseUri = 'assets/icons/poi/store';
-        if (p.types && p.types[0]) {
-          iconBaseUri = `assets/icons/poi/${p.types[0]}`;
-        }
+        const iconName = getPoiIconName(p.types);
+        const iconBaseUri = `assets/icons/poi/${iconName}`;
         return {
           place_id: p.id,
           name: p.displayName?.text || p.displayName || '',

@@ -7,7 +7,7 @@ import { performFlyTo } from './MapViewer';
 const POI_CONFIG = {
   density: 30,
   searchRadius: 1000,
-  types: ["restaurant", "bar", "supermarket"]
+  types: ["restaurant", "bar", "supermarket", "cafe"]
 };
 
 export const HeaderPanel = () => {
@@ -16,9 +16,24 @@ export const HeaderPanel = () => {
 
   const opsMode = useStore((state) => state.opsMode);
   const setOpsMode = useStore((state) => state.setOpsMode);
+  const centerCoords = useStore((state) => state.centerCoords);
   const setCenterCoords = useStore((state) => state.setCenterCoords);
   const setNearbyPois = useStore((state) => state.setNearbyPois);
   const resetCameraSliders = useStore((state) => state.resetCameraSliders);
+
+  // Load initial POIs on Mount around default center coordinates (Chelsea Market)
+  useEffect(() => {
+    const loadInitialPois = async () => {
+      try {
+        console.log("🚀 Initializing map with default POIs (including Cafes) around Chelsea Market...");
+        const pois = await getNearbyPois(POI_CONFIG, centerCoords);
+        setNearbyPois(pois);
+      } catch (err) {
+        console.error("Error loading initial POIs on mount:", err);
+      }
+    };
+    loadInitialPois();
+  }, [setNearbyPois]);
 
   // Initialize Autocomplete once on Mount
   useEffect(() => {

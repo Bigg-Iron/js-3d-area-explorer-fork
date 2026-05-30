@@ -33,6 +33,7 @@ export async function initGoogleMaps() {
         script.innerText = ((g) => {
           var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window;
           b = b[c] || (b[c] = {});
+          /* eslint-disable-next-line no-async-promise-executor */
           var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => {
             await (a = m.createElement("script"));
             e.set("libraries", [...r] + "");
@@ -369,7 +370,8 @@ export async function getLocation(location, type) {
   if (!coords) {
     try {
       coords = new google.maps.LatLng(location);
-    } catch (e) {
+    } catch (err) {
+      console.warn("Failed standard LatLng constructor parsing, trying dynamic resolvers:", err);
       coords = null;
     }
   }

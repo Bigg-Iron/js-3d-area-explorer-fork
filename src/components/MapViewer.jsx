@@ -1,5 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
 // Copyright 2026 Google LLC
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { useStore } from '../store/useStore';
 import { getPlaceDetails } from '../utils/places';
@@ -10,7 +11,6 @@ const CAMERA_HEIGHT = 100;
 const BASE_PITCH = -30;
 const AUTO_ORBIT_PITCH_AMPLITUDE = 10;
 const RANGE_AMPLITUDE_RELATIVE = 0.55;
-const ZOOM_FACTOR = 20;
 
 const CAMERA_OFFSET = {
   heading: 0,
@@ -243,9 +243,7 @@ export const MapViewer = () => {
   const nearbyPois = useStore((state) => state.nearbyPois);
   const selectedPlaceId = useStore((state) => state.selectedPlaceId);
   
-  const setNearbyPois = useStore((state) => state.setNearbyPois);
   const setSelectedPlace = useStore((state) => state.setSelectedPlace);
-  const updateCameraState = useStore((state) => state.updateCameraState);
 
   // Initialize Cesium Viewer on Mount
   useEffect(() => {
@@ -509,6 +507,7 @@ export const MapViewer = () => {
               const details = await getPlaceDetails(placeId);
               setSelectedPlace({ ...activePoi, ...details });
             } catch (err) {
+              console.warn("Failed to retrieve detailed place info, falling back to basic POI:", err);
               setSelectedPlace(activePoi);
             }
           }
@@ -562,7 +561,7 @@ export const MapViewer = () => {
     };
 
     drawMarkers();
-  }, [nearbyPois, centerCoords, selectedPlaceId]);
+  }, [nearbyPois, centerCoords, selectedPlaceId, setSelectedPlace]);
 
   return <div ref={containerRef} id="cesium-container" className="w-full h-full" />;
 };

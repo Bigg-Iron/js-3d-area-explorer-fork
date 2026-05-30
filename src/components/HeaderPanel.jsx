@@ -33,7 +33,7 @@ export const HeaderPanel = () => {
       }
     };
     loadInitialPois();
-  }, [setNearbyPois]);
+  }, [setNearbyPois, centerCoords]);
 
   // Initialize Autocomplete once on Mount
   useEffect(() => {

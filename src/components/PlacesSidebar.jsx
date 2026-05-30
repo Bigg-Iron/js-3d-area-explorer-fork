@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { setSelectedMarker } from './MapViewer';
 import { StreetViewPanel } from './StreetViewPanel';

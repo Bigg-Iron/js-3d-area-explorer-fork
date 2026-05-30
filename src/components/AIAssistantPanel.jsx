@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import * as Cesium from 'cesium';
 import { useStore } from '../store/useStore';
 import { performFlyTo, cesiumViewer } from './MapViewer';
@@ -295,6 +295,7 @@ export const AIAssistantPanel = () => {
           useStore.getState().setSelectedPlace(place);
         }
       } catch (err) {
+        console.warn("Failed to lookup search place details:", err);
         useStore.getState().setSelectedPlace(place);
       }
     }

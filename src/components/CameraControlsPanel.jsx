@@ -1,5 +1,4 @@
 // Copyright 2026 Google LLC
-import React from 'react';
 import { useStore } from '../store/useStore';
 
 export const CameraControlsPanel = () => {

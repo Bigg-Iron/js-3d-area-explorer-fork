@@ -9,6 +9,19 @@
 
 Before staging your final commit, you open CHANGELOG.md and add a line under ### Added: - User authentication via JWT ([#12]). You commit, push, and open your GitHub Pull Request.
 
+## [1.3.3] - 2026-05-30
+
+### Added
+- **Default Cafe Category Support:** Included `"cafe"` in the default `POI_CONFIG.types` in the React header panel, enabling the application to dynamically fetch and visualize local cafe locations on load.
+- **Initial POI Startup Loading:** Deployed a mount-effect `useEffect` in the header panel to fetch and populate active map markers immediately on launch, replacing the previously blank initial map view.
+
+### Fixed
+- **Silent Cafe POI Rendering Crash:** Resolved an incorrect SVG resource mapping bug in the AI Assistant Panel. When querying for cafe selections, it would resolve place markers to `assets/icons/poi/cafe.svg` (causing a silent `404 Not Found` network error). The logic now utilizes the core `getPoiIconName(types)` utility to map dynamic place types to the correct `coffee.svg` asset.
+- **Cesium Hover Label TypeError:** Fixed a fatal runtime crash in the Cesium `handleHover` billboard tracking handler. When the mouse hovered over label-less map primitives (such as road operational route polylines or fleet vehicles), it would attempt to modify label scaling, throwing a continuous console `Uncaught TypeError`. Introduced defensive optional guards (`hoveredMarker.id?.label`) to ensure full user interface stability.
+
+### Refactored
+- **100% ESLint Workspace Compliance:** Refactored 9 files across the repository to fully eliminate all compiler warnings and code quality errors, cleaning up unused `React` imports, removing dead constants/assignments, resolving Hook dependency array auditing, and adding clean ESLint override comment directives for synchronous resets and async dynamic builders.
+
 ## [1.3.2] - 2026-05-30
 
 ### Changed

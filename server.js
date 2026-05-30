@@ -47,7 +47,7 @@ function simulateWeather(location) {
   };
 }
 
-// Places API (New) Text Search
+// Google Places (new) API Text Search
 async function searchPlacesReal(textQuery, locationBias) {
   try {
     const url = 'https://places.googleapis.com/v1/places:searchText';

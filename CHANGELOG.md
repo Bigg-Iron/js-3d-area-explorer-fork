@@ -9,6 +9,12 @@
 
 Before staging your final commit, you open CHANGELOG.md and add a line under ### Added: - User authentication via JWT ([#12]). You commit, push, and open your GitHub Pull Request.
 
+## [1.3.2] - 2026-05-30
+
+### Changed
+- **Unified Nomenclature to Google Places (new) API:** Updated all internal comments, warnings, error codes, logs, and parameters to explicitly reference the modern `Google Places (new) API` instead of legacy "Google Places API" or "Places API New".
+- **Robust Places Load Diagnostics & Error Logging:** Integrated detailed try/catch block handlers across `initGoogleMaps`, `getPlaceDetails`, `getNearbyPois`, `fetchCoordsByPlaceId`, `fetchCoordsByPlaceName`, and `initAutocomplete` to print the exact stack trace, error code, and exception message in the Chrome console if any Places query fails, ensuring effortless developer diagnostics.
+
 ## [1.3.1] - 2026-05-29
 
 ### Fixed

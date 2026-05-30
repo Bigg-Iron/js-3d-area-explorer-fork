@@ -64,15 +64,18 @@ export async function initGoogleMaps() {
                   document.createElement("div")
                 );
               } catch (err) {
-                console.warn("⚠️ Legacy PlacesService initialization skipped (using modern Places API New).");
+                console.warn("⚠️ Legacy PlacesService initialization failed/skipped. Google Places (new) API will be used instead. Error details:", err.message || err);
               }
               resolve(window.google);
-            }).catch(reject);
+            }).catch((err) => {
+              console.error("❌ FATAL: Failed to import 'places' library in Google Places (new) API. Error details:", err.message || err, err.stack || err);
+              reject(err);
+            });
           }
         }, 50);
       });
     } catch (err) {
-      console.error("Failed to load Google Maps SDK:", err);
+      console.error("❌ FATAL: Failed to load Google Maps / Google Places (new) API SDK. Error details:", err.message || err, err.stack || err);
       throw err;
     }
   })();
@@ -81,7 +84,7 @@ export async function initGoogleMaps() {
 }
 
 /**
- * Returns details for a given place ID using modern Places API (New) with fallback.
+ * Returns details for a given place ID using Google Places (new) API with fallback.
  */
 export async function getPlaceDetails(placeId) {
   await initGoogleMaps();
@@ -133,14 +136,17 @@ export async function getPlaceDetails(placeId) {
 
     return legacyPlace;
   } catch (error) {
-    console.warn("⚠️ Modern Place.fetchFields failed, trying legacy fallback...", error);
+    console.error("❌ Google Places (new) API: Place.fetchFields failed. Error details:", error.message || error, error.stack || error);
+    console.warn("⚠️ Attempting legacy PlacesService.getDetails fallback...");
     if (placesService) {
       return new Promise((resolve, reject) => {
         placesService.getDetails({ placeId }, (place, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK) {
             resolve(place);
           } else {
-            reject(new Error("Failed to get legacy place details: " + status));
+            const err = new Error("Failed to get legacy place details: " + status);
+            console.error("❌ Legacy Places fallback failed:", err);
+            reject(err);
           }
         });
       });
@@ -191,7 +197,7 @@ function getPoiIconName(types) {
 }
 
 /**
- * Retrieves nearby places using modern searchNearby or legacy fallback.
+ * Retrieves nearby places using Google Places (new) API searchNearby or legacy fallback.
  */
 export async function getNearbyPois(poiConfig, coordinates) {
   await initGoogleMaps();
@@ -261,7 +267,8 @@ export async function getNearbyPois(poiConfig, coordinates) {
 
     return uniqueMapped.slice(0, poiConfig.density);
   } catch (error) {
-    console.warn("⚠️ Modern Place.searchNearby failed, attempting legacy fallback...", error);
+    console.error("❌ Google Places (new) API: Place.searchNearby failed. Error details:", error.message || error, error.stack || error);
+    console.warn("⚠️ Attempting legacy PlacesService.nearbySearch fallback...");
     
     if (placesService) {
       const placesPromises = [];
@@ -387,14 +394,17 @@ async function fetchCoordsByPlaceId(placeId) {
     await place.fetchFields({ fields: ["location"] });
     return place.location;
   } catch (error) {
-    console.warn("⚠️ Modern Place.fetchFields location query failed, falling back to legacy...", error);
+    console.error("❌ Google Places (new) API: fetchCoordsByPlaceId failed. Error details:", error.message || error, error.stack || error);
+    console.warn("⚠️ Attempting legacy PlacesService.getDetails coordinates fallback...");
     if (placesService) {
       return new Promise((resolve, reject) => {
         placesService.getDetails({ placeId, fields: ["geometry"] }, (place, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK) {
             resolve(place.geometry.location);
           } else {
-            reject(new Error("Failed legacy coordinates fetch by ID: " + status));
+            const err = new Error("Failed legacy coordinates fetch by ID: " + status);
+            console.error("❌ Legacy fallback failed:", err);
+            reject(err);
           }
         });
       });
@@ -416,14 +426,17 @@ async function fetchCoordsByPlaceName(placeName) {
     }
     throw new Error("No places returned for query: " + placeName);
   } catch (error) {
-    console.warn("⚠️ Modern Place.searchByText failed, falling back to legacy...", error);
+    console.error("❌ Google Places (new) API: fetchCoordsByPlaceName failed. Error details:", error.message || error, error.stack || error);
+    console.warn("⚠️ Attempting legacy PlacesService.findPlaceFromQuery coordinates fallback...");
     if (placesService) {
       return new Promise((resolve, reject) => {
         placesService.findPlaceFromQuery({ query: placeName, fields: ["geometry"] }, (results, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
             resolve(results[0].geometry.location);
           } else {
-            reject(new Error("Failed legacy coordinates fetch by query: " + status));
+            const err = new Error("Failed legacy coordinates fetch by query: " + status);
+            console.error("❌ Legacy fallback failed:", err);
+            reject(err);
           }
         });
       });
@@ -470,18 +483,19 @@ export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
             onPlaceSelectedCallback(mockPlaceResult);
           }
         } catch (err) {
-          console.warn("⚠️ Modern searchByText failed in autocomplete, trying legacy fallback...", err);
+          console.error("❌ Google Places (new) API: searchByText in autocomplete failed. Error details:", err.message || err, err.stack || err);
+          console.warn("⚠️ Attempting legacy PlacesService.findPlaceFromQuery fallback...");
           if (placesService) {
             placesService.findPlaceFromQuery({ query, fields: ["geometry", "name", "place_id"] }, (results, status) => {
               if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
                 const firstResult = results[0];
                 onPlaceSelectedCallback(firstResult);
               } else {
-                console.error("Text search autocomplete legacy fallback failed:", status);
+                console.error("❌ Legacy search fallback failed inside autocomplete:", status);
               }
             });
           } else {
-            console.error("Text search autocomplete fallback failed:", err);
+            console.error("❌ Legacy search fallback skipped (placesService uninitialized):", err);
           }
         }
       }
@@ -500,7 +514,7 @@ export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
       });
       console.log("✅ Google Places Autocomplete successfully bound.");
     } catch (legacyErr) {
-      console.warn("⚠️ Legacy Autocomplete skipped. Enter key triggers Places (New) search.");
+      console.warn("⚠️ Legacy Autocomplete skipped. Enter key triggers Google Places (new) API search. Details:", legacyErr.message || legacyErr);
     }
 
   } catch (error) {

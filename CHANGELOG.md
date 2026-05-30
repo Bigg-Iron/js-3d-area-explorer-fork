@@ -9,6 +9,17 @@
 
 Before staging your final commit, you open CHANGELOG.md and add a line under ### Added: - User authentication via JWT ([#12]). You commit, push, and open your GitHub Pull Request.
 
+## [1.3.4] - 2026-05-29
+
+### Fixed
+- **Cesium Asynchronous Billboard Race Condition:** Resolved a critical race condition where concurrent `drawMarkers` executions (triggered on rapid updates or Strict Mode double mounts) attempted to insert duplicate Entity IDs before the previous loop cleared or finished. Integrated a global `activeDrawId` cancellation token that aborts superseded draws at every asynchronous yield point (terrain height clamping and SVG fetches) and added a pre-emptive `entities.remove` cleanup check right before adding any new marker entity in `src/components/MapViewer.jsx`.
+- **Places UI Kit Compact Card Crash:** Solved the `InvalidValueError` crash on `<gmp-place-details-compact>` by removing the redundant `orientation="vertical"` attribute, allowing the element to default vertical without raising property assignment errors.
+- **Zustand Place Selection Sync:** Updated `setSelectedPlace` in `src/store/useStore.js` to fallback to `.place_id`, achieving full compatibility with Google Maps POI structure and ensuring the side panel is successfully opened on select.
+- **Form Field Accessibility Audits:** Injected proper, unique `id` and descriptive `name` attributes to all range sliders, checkbox toggles, and chat inputs inside `src/components/AIAssistantPanel.jsx` and `src/components/CameraControlsPanel.jsx` to resolve accessibility audits.
+
+### Added
+- **Global Test Utilities:** Attached `cesiumViewer` and `useStore` to `window.cesiumViewer` and `window.useStore` during initialization in `src/components/MapViewer.jsx` to enable seamless browser automation, state inspection, and runtime verification, with proper lifecycle null resets on unmount.
+
 ## [1.3.3] - 2026-05-30
 
 ### Added

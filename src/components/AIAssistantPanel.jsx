@@ -411,6 +411,8 @@ export const AIAssistantPanel = () => {
           <div className="flex items-center gap-2 p-3 bg-slate-950/30 border-t border-white/5 select-none">
             <input
               type="text"
+              id="ai-assistant-chat-input"
+              name="chat-message"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}

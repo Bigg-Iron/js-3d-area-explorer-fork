@@ -103,6 +103,7 @@ const defaultLabelOffset = -60;
 const defaultLabelVisibility = new Cesium.NearFarScalar(650, 1, 1000, 0);
 const CENTER_MARKER_ID = "center";
 let createdEntityIds = [];
+let activeDrawId = 0;
 let markerClickHandler = null;
 let markerHoverHandler = null;
 let hoveredMarker = null;
@@ -171,12 +172,18 @@ async function createMarkerSvg(markerData) {
 }
 
 function addHeightOffset(coord, heightOffset) {
-  const cartographic = Cesium.Cartographic.fromCartesian(coord);
-  return Cesium.Cartesian3.fromRadians(
-    cartographic.longitude,
-    cartographic.latitude,
-    cartographic.height + heightOffset
-  );
+  try {
+    const cartographic = Cesium.Cartographic.fromCartesian(coord);
+    if (!cartographic) return coord;
+    return Cesium.Cartesian3.fromRadians(
+      cartographic.longitude,
+      cartographic.latitude,
+      cartographic.height + heightOffset
+    );
+  } catch (err) {
+    console.warn("addHeightOffset: Failed to extract Cartographic coordinates, returning raw Cartesian3:", err.message || err);
+    return coord;
+  }
 }
 
 function truncateName(name) {
@@ -281,6 +288,8 @@ export const MapViewer = () => {
     });
 
     cesiumViewer = viewer;
+    window.cesiumViewer = viewer;
+    window.useStore = useStore;
 
     // Load Photorealistic 3D Tileset
     const loadTileset = async () => {
@@ -404,6 +413,8 @@ export const MapViewer = () => {
         viewer.destroy();
       }
       cesiumViewer = null;
+      window.cesiumViewer = null;
+      window.useStore = null;
       if (markerClickHandler) markerClickHandler.destroy();
       if (markerHoverHandler) markerHoverHandler.destroy();
     };
@@ -425,6 +436,9 @@ export const MapViewer = () => {
         return;
       }
 
+      activeDrawId++;
+      const currentDrawId = activeDrawId;
+
       // Clear old marker entities
       createdEntityIds.forEach((id) => {
         const entity = cesiumViewer.entities.getById(id);
@@ -444,22 +458,69 @@ export const MapViewer = () => {
       };
 
       const pointsArray = [...nearbyPois, centerMarkerData];
-      const positions = pointsArray.map((poi) => {
-        const jsonLoc = poi.geometry.location.toJSON ? poi.geometry.location.toJSON() : poi.geometry.location;
-        const lng = typeof jsonLoc.lng === 'function' ? jsonLoc.lng() : jsonLoc.lng;
-        const lat = typeof jsonLoc.lat === 'function' ? jsonLoc.lat() : jsonLoc.lat;
-        return Cesium.Cartesian3.fromDegrees(lng, lat);
-      });
+      const positions = [];
+      const validPoints = [];
+
+      for (const poi of pointsArray) {
+        if (!poi || !poi.geometry || !poi.geometry.location) {
+          console.warn("Skipping billboard marker rendering: POI geometry lacks valid location structure.", poi);
+          continue;
+        }
+        try {
+          const jsonLoc = poi.geometry.location.toJSON ? poi.geometry.location.toJSON() : poi.geometry.location;
+          let lat = typeof jsonLoc.lat === 'function' ? jsonLoc.lat() : jsonLoc.lat;
+          let lng = typeof jsonLoc.lng === 'function' ? jsonLoc.lng() : jsonLoc.lng;
+
+          if (lat === undefined && jsonLoc.latitude !== undefined) lat = jsonLoc.latitude;
+          if (lng === undefined && jsonLoc.longitude !== undefined) lng = jsonLoc.longitude;
+
+          const latNum = parseFloat(lat);
+          const lngNum = parseFloat(lng);
+
+          if (!isNaN(latNum) && !isNaN(lngNum)) {
+            positions.push(Cesium.Cartesian3.fromDegrees(lngNum, latNum));
+            validPoints.push(poi);
+          } else {
+            console.warn("Skipping billboard marker: resolved Latitude/Longitude parsed as NaN.", poi);
+          }
+        } catch (coordErr) {
+          console.warn("Exception parsing coordinates for POI billboard rendering:", poi, coordErr);
+        }
+      }
+
+      if (positions.length === 0) return;
 
       try {
-        const adjustedPositions = await cesiumViewer.scene.clampToHeightMostDetailed(positions);
-        
+        let adjustedPositions;
+        try {
+          adjustedPositions = await cesiumViewer.scene.clampToHeightMostDetailed(positions);
+        } catch (clampErr) {
+          console.warn("clampToHeightMostDetailed failed or terrain not ready. Falling back to standard ellipsoid heights:", clampErr);
+          adjustedPositions = positions;
+        }
+
+        if (activeDrawId !== currentDrawId) return;
+
         for (let i = 0; i < adjustedPositions.length; i++) {
-          const coord = adjustedPositions[i];
-          const poi = pointsArray[i];
+          if (activeDrawId !== currentDrawId) return;
+
+          let coord = adjustedPositions[i];
+          if (!coord) {
+            console.warn(`Position at index ${i} could not be clamped to terrain height. Using standard ellipsoid height.`);
+            coord = positions[i];
+          }
+          const poi = validPoints[i];
           const coordWithHeightOffset = addHeightOffset(coord, 28);
-          const id = i < nearbyPois.length ? poi.place_id : CENTER_MARKER_ID;
+          const id = poi.isCenterLocation ? CENTER_MARKER_ID : poi.place_id;
           const markerSvg = await createMarkerSvg(poi);
+
+          if (activeDrawId !== currentDrawId) return;
+
+          // Pre-emptive removal guard to ensure no duplicate ID collision inside the collection
+          const existingEntity = cesiumViewer.entities.getById(id);
+          if (existingEntity) {
+            cesiumViewer.entities.remove(existingEntity);
+          }
 
           const entity = cesiumViewer.entities.add({
             ...getPolylineConfiguration({ start: coord, end: coordWithHeightOffset }),
@@ -478,7 +539,7 @@ export const MapViewer = () => {
           }
         }
       } catch (err) {
-        console.error("Error drawing billboards:", err);
+        console.error("Error drawing billboards after position coordinates resolution:", err.message || err, err.stack || err);
       }
 
       // Re-bind click event

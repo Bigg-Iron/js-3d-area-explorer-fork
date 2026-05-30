@@ -111,6 +111,7 @@ export const HeaderPanel = () => {
           ref={inputRef}
           type="text"
           id="place-search-input"
+          name="q"
           placeholder="Search globally..."
           autoComplete="off"
           className="bg-transparent text-white placeholder-slate-400 border-none outline-none text-sm w-full font-medium"

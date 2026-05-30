@@ -47,7 +47,7 @@ export const useStore = create((set) => ({
   
   setSelectedPlace: (selectedPlace) => set({ 
     selectedPlace, 
-    selectedPlaceId: selectedPlace ? (selectedPlace.id || selectedPlace.placeId) : null 
+    selectedPlaceId: selectedPlace ? (selectedPlace.id || selectedPlace.placeId || selectedPlace.place_id) : null 
   }),
   
   setSelectedPlaceId: (selectedPlaceId) => set({ selectedPlaceId }),

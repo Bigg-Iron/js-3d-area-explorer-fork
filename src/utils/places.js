@@ -4,6 +4,20 @@
 let placesService = null;
 let placesPromise = null;
 
+function getLegacyPlacesService() {
+  if (placesService) return placesService;
+  try {
+    if (window.google && window.google.maps && window.google.maps.places) {
+      placesService = new window.google.maps.places.PlacesService(
+        document.createElement("div")
+      );
+    }
+  } catch (err) {
+    console.warn("⚠️ Failed to lazily initialize legacy PlacesService:", err);
+  }
+  return placesService;
+}
+
 /**
  * Asynchronously initializes and loads the Google Maps JavaScript API.
  * Pulls the API key dynamically from our Express config endpoint.
@@ -60,13 +74,6 @@ export async function initGoogleMaps() {
             
             // Import places library
             window.google.maps.importLibrary("places").then(() => {
-              try {
-                placesService = new window.google.maps.places.PlacesService(
-                  document.createElement("div")
-                );
-              } catch (err) {
-                console.warn("⚠️ Legacy PlacesService initialization failed/skipped. Google Places (new) API will be used instead. Error details:", err.message || err);
-              }
               resolve(window.google);
             }).catch((err) => {
               console.error("❌ FATAL: Failed to import 'places' library in Google Places (new) API. Error details:", err.message || err, err.stack || err);
@@ -139,9 +146,10 @@ export async function getPlaceDetails(placeId) {
   } catch (error) {
     console.error("❌ Google Places (new) API: Place.fetchFields failed. Error details:", error.message || error, error.stack || error);
     console.warn("⚠️ Attempting legacy PlacesService.getDetails fallback...");
-    if (placesService) {
+    const service = getLegacyPlacesService();
+    if (service) {
       return new Promise((resolve, reject) => {
-        placesService.getDetails({ placeId }, (place, status) => {
+        service.getDetails({ placeId }, (place, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK) {
             resolve(place);
           } else {
@@ -271,7 +279,8 @@ export async function getNearbyPois(poiConfig, coordinates) {
     console.error("❌ Google Places (new) API: Place.searchNearby failed. Error details:", error.message || error, error.stack || error);
     console.warn("⚠️ Attempting legacy PlacesService.nearbySearch fallback...");
     
-    if (placesService) {
+    const service = getLegacyPlacesService();
+    if (service) {
       const placesPromises = [];
 
       for (const locationType of poiConfig.types) {
@@ -398,9 +407,10 @@ async function fetchCoordsByPlaceId(placeId) {
   } catch (error) {
     console.error("❌ Google Places (new) API: fetchCoordsByPlaceId failed. Error details:", error.message || error, error.stack || error);
     console.warn("⚠️ Attempting legacy PlacesService.getDetails coordinates fallback...");
-    if (placesService) {
+    const service = getLegacyPlacesService();
+    if (service) {
       return new Promise((resolve, reject) => {
-        placesService.getDetails({ placeId, fields: ["geometry"] }, (place, status) => {
+        service.getDetails({ placeId, fields: ["geometry"] }, (place, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK) {
             resolve(place.geometry.location);
           } else {
@@ -430,9 +440,10 @@ async function fetchCoordsByPlaceName(placeName) {
   } catch (error) {
     console.error("❌ Google Places (new) API: fetchCoordsByPlaceName failed. Error details:", error.message || error, error.stack || error);
     console.warn("⚠️ Attempting legacy PlacesService.findPlaceFromQuery coordinates fallback...");
-    if (placesService) {
+    const service = getLegacyPlacesService();
+    if (service) {
       return new Promise((resolve, reject) => {
-        placesService.findPlaceFromQuery({ query: placeName, fields: ["geometry"] }, (results, status) => {
+        service.findPlaceFromQuery({ query: placeName, fields: ["geometry"] }, (results, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
             resolve(results[0].geometry.location);
           } else {
@@ -487,8 +498,9 @@ export async function initAutocomplete(inputElement, onPlaceSelectedCallback) {
         } catch (err) {
           console.error("❌ Google Places (new) API: searchByText in autocomplete failed. Error details:", err.message || err, err.stack || err);
           console.warn("⚠️ Attempting legacy PlacesService.findPlaceFromQuery fallback...");
-          if (placesService) {
-            placesService.findPlaceFromQuery({ query, fields: ["geometry", "name", "place_id"] }, (results, status) => {
+          const service = getLegacyPlacesService();
+          if (service) {
+            service.findPlaceFromQuery({ query, fields: ["geometry", "name", "place_id"] }, (results, status) => {
               if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
                 const firstResult = results[0];
                 onPlaceSelectedCallback(firstResult);

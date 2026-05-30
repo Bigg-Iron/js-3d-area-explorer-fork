@@ -1,5 +1,4 @@
 // Copyright 2026 Google LLC
-import React from 'react';
 import { MapViewer } from './components/MapViewer';
 import { HeaderPanel } from './components/HeaderPanel';
 import { TelemetryPanel } from './components/TelemetryPanel';

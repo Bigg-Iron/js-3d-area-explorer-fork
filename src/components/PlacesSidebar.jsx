@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { setSelectedMarker } from './MapViewer';
 import { StreetViewPanel } from './StreetViewPanel';
@@ -64,15 +64,16 @@ export const PlacesSidebar = () => {
         </div>
 
         {/* Places UI Kit Compact Details */}
-        <gmp-place-details-compact
-          orientation="vertical"
-          id="places-ui-kit-details"
-          className="w-full flex-grow overflow-y-auto custom-scrollbar p-4 text-slate-300"
-          style={{ colorScheme: 'dark' }}
-        >
-          <gmp-place-details-place-request ref={requestRef}></gmp-place-details-place-request>
-          <gmp-place-all-content></gmp-place-all-content>
-        </gmp-place-details-compact>
+        {selectedPlaceId && (
+          <gmp-place-details-compact
+            id="places-ui-kit-details"
+            className="w-full flex-grow overflow-y-auto custom-scrollbar p-4 text-slate-300"
+            style={{ colorScheme: 'dark' }}
+          >
+            <gmp-place-details-place-request ref={requestRef}></gmp-place-details-place-request>
+            <gmp-place-all-content></gmp-place-all-content>
+          </gmp-place-details-compact>
+        )}
 
         {/* Dynamic Street View Telemetry Panel */}
         <StreetViewPanel placeId={selectedPlaceId} />

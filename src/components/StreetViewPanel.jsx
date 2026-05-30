@@ -1,5 +1,5 @@
 // Copyright 2026 Google LLC
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export const StreetViewPanel = ({ placeId }) => {
   const containerRef = useRef(null);
@@ -9,8 +9,10 @@ export const StreetViewPanel = ({ placeId }) => {
 
   useEffect(() => {
     if (!placeId) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setHasStreetView(false);
       setEnlarged(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
       return;
     }
 

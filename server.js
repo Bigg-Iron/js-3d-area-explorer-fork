@@ -1,13 +1,25 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { BigQuery } from '@google-cloud/bigquery';
 
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const envPath = path.join(__dirname, '.env');
+console.log(`\n🔍 DIAGNOSTIC: Script directory is: ${__dirname}`);
+console.log(`🔍 DIAGNOSTIC: Working directory is: ${process.cwd()}`);
+console.log(`🔍 DIAGNOSTIC: Resolved .env path is: ${envPath}`);
+console.log(`🔍 DIAGNOSTIC: .env file exists? ${fs.existsSync(envPath)}`);
+
+const dotenvResult = dotenv.config({ path: envPath });
+if (dotenvResult.error) {
+  console.error("❌ DIAGNOSTIC: Dotenv error:", dotenvResult.error);
+} else {
+  console.log("✅ DIAGNOSTIC: Dotenv loaded successfully. Keys found:", Object.keys(dotenvResult.parsed || {}));
+}
 
 const app = express();
 app.use(express.json());
@@ -35,7 +47,7 @@ function simulateWeather(location) {
   };
 }
 
-// Places API (New) Text Search
+// Google Places (new) API Text Search
 async function searchPlacesReal(textQuery, locationBias) {
   try {
     const url = 'https://places.googleapis.com/v1/places:searchText';
@@ -490,6 +502,17 @@ app.use(express.static(path.join(__dirname, 'dist')));
 app.use(express.static(path.join(__dirname)));
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Spatial Operations Agentic server running on http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ ERROR: Port ${PORT} is already in use by another process.`);
+    console.error(`👉 Please terminate the other process running on port ${PORT}, or start this server on a different port using:`);
+    console.error(`   PORT=8081 npm run server\n`);
+    process.exit(1);
+  } else {
+    throw err;
+  }
 });
